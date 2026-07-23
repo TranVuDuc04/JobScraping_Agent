@@ -21,17 +21,12 @@ def parse_search_url(search_url: str) -> tuple[str, str]:
     return keywords, location
 
 
-def fetch_job_urls(search_url: str, page_size: int = DEFAULT_PAGE_SIZE) -> list[str]:
-    """Fetch job detail URLs from Seek's public search API.
-
-    Args:
-        search_url: Seek search results page URL used to derive query params.
-        page_size: Number of jobs to request from the API.
-
-    Returns:
-        A list of canonical Seek job detail URLs.
-    """
-    keywords, location = parse_search_url(search_url)
+def fetch_job_urls_for_query(
+    keywords: str,
+    location: str = "",
+    page_size: int = DEFAULT_PAGE_SIZE,
+) -> list[str]:
+    """Fetch job detail URLs for a single keyword/location query."""
     params: dict[str, str | int] = {
         "keywords": keywords,
         "page": 1,
@@ -52,17 +47,33 @@ def fetch_job_urls(search_url: str, page_size: int = DEFAULT_PAGE_SIZE) -> list[
     )
     response.raise_for_status()
 
-    payload = response.json()
     urls: list[str] = []
-    seen: set[str] = set()
-
-    for job in payload.get("data", []):
+    for job in response.json().get("data", []):
         job_id = job.get("id")
-        if not job_id:
-            continue
-        url = f"https://www.seek.com.au/job/{job_id}"
-        if url not in seen:
-            seen.add(url)
-            urls.append(url)
+        if job_id:
+            urls.append(f"https://www.seek.com.au/job/{job_id}")
+    return urls
+
+
+def fetch_job_urls(search_url: str, page_size: int = DEFAULT_PAGE_SIZE) -> list[str]:
+    """Fetch job detail URLs from a Seek search results URL."""
+    keywords, location = parse_search_url(search_url)
+    return fetch_job_urls_for_query(keywords, location, page_size)
+
+
+def fetch_job_urls_for_keywords(
+    keywords_list: list[str],
+    location: str = "",
+    page_size: int = DEFAULT_PAGE_SIZE,
+) -> list[str]:
+    """Fetch and deduplicate job URLs across multiple keyword searches."""
+    seen: set[str] = set()
+    urls: list[str] = []
+
+    for keywords in keywords_list:
+        for url in fetch_job_urls_for_query(keywords, location, page_size):
+            if url not in seen:
+                seen.add(url)
+                urls.append(url)
 
     return urls

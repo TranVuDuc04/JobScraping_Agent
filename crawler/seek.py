@@ -9,7 +9,7 @@ import config
 from crawler.base import BaseCrawler
 from crawler.browser_config import BROWSER_ARGS, STEALTH_INIT_SCRIPT, get_context_options
 from crawler.diagnostics import save_page_diagnostics
-from crawler.seek_api import fetch_job_urls
+from crawler.seek_api import fetch_job_urls, fetch_job_urls_for_keywords
 from utils.logger import Logger
 
 JOB_LINK_SELECTOR = (
@@ -30,7 +30,9 @@ class SeekCrawler(BaseCrawler):
         Args:
             search_url: Optional override for the Seek search results URL.
         """
-        self.search_url = search_url or config.SEEK_SEARCH_URL
+        self.search_urls = (
+            [search_url] if search_url else config.get_seek_search_urls()
+        )
         self.logger = Logger("seek-crawler")
         self._playwright: Playwright | None = None
         self._browser: Browser | None = None
@@ -75,25 +77,33 @@ class SeekCrawler(BaseCrawler):
         """Fetch job URLs via Seek's public search API (CI-compatible path)."""
         self.logger.info("Using Seek search API for URL discovery")
         try:
-            urls = fetch_job_urls(self.search_url)
+            urls = fetch_job_urls_for_keywords(
+                config.SEEK_SEARCH_KEYWORDS,
+                config.SEEK_SEARCH_LOCATION,
+            )
         except Exception as exc:
             self.logger.error(f"Seek API request failed: {exc}")
             raise RuntimeError("Seek API URL discovery failed") from exc
 
-        self.logger.info(f"Found {len(urls)} jobs")
+        self.logger.info(f"Found {len(urls)} jobs across {len(config.SEEK_SEARCH_KEYWORDS)} searches")
         self.logger.info("Returning URLs")
         return urls
 
     async def _run_crawl(self) -> list[str]:
-        """Execute a single crawl attempt.
-
-        Returns:
-            A deduplicated list of job detail URLs.
-        """
+        """Execute a single crawl attempt across all configured searches."""
         try:
             await self._launch_browser()
-            await self._open_search_page()
-            urls = await self._extract_urls()
+            seen: set[str] = set()
+            urls: list[str] = []
+
+            for search_url in self.search_urls:
+                self.logger.info(f"Opening Seek search: {search_url}")
+                page_urls = await self._open_search_page(search_url)
+                for url in page_urls:
+                    if url not in seen:
+                        seen.add(url)
+                        urls.append(url)
+
             self.logger.info(f"Found {len(urls)} jobs")
             return urls
         finally:
@@ -111,14 +121,13 @@ class SeekCrawler(BaseCrawler):
         self._page = await self._context.new_page()
         self._page.set_default_timeout(config.PLAYWRIGHT_TIMEOUT)
 
-    async def _open_search_page(self) -> None:
-        """Navigate to the Seek search results page and wait for listings."""
+    async def _open_search_page(self, search_url: str) -> list[str]:
+        """Navigate to a Seek search page and return job detail URLs."""
         if self._page is None:
             raise RuntimeError("Browser page is not initialized")
 
-        self.logger.info("Opening Seek...")
         response = await self._page.goto(
-            self.search_url,
+            search_url,
             wait_until="domcontentloaded",
         )
         if response is not None:
@@ -136,6 +145,8 @@ class SeekCrawler(BaseCrawler):
         except Exception:
             await save_page_diagnostics(self._page, self.logger)
             raise
+
+        return await self._extract_urls()
 
     async def _dismiss_cookie_banner(self) -> None:
         """Dismiss the cookie consent banner if it appears."""

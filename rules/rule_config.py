@@ -1,11 +1,37 @@
 """Rule engine configuration for job filtering."""
 
 ALLOWED_TITLES: list[str] = [
-    "Project Coordinator",
-    "Project Officer",
+    "Junior Software Engineer",
+    "Junior Developer",
+    "Junior Engineer",
+    "Software Engineer",
+    "Software Developer",
+    "Graduate Developer",
+    "Graduate Software",
+    "Graduate Program",
+    "Graduate",
+    "Entry Level",
+    "Intern",
+    "Internship",
+    "Vacationer",
+    "Trainee",
+    "Data Analyst",
+    "Data Analysis",
     "Business Analyst",
-    "Product Coordinator",
-    "Associate Product Manager",
+    "Machine Learning",
+    "ML Engineer",
+    "AI Engineer",
+    "Artificial Intelligence",
+    "Data Scientist",
+    "Junior Data",
+    "Associate Developer",
+    "Associate Engineer",
+    "Part Time",
+    "Part-Time",
+    "Developer",
+    "Engineer",
+    "Analyst",
+    "Technologist",
 ]
 
 BLOCKED_TITLES: list[str] = [
@@ -13,11 +39,34 @@ BLOCKED_TITLES: list[str] = [
     "Lead",
     "Principal",
     "Director",
+    "Head of",
+    "Chief",
+    "Manager",
 ]
 
 ALLOWED_LOCATIONS: list[str] = [
-    "Melbourne",
+    "Australia",
     "Remote",
+    "Hybrid",
+    "Sydney",
+    "Melbourne",
+    "Brisbane",
+    "Perth",
+    "Adelaide",
+    "Canberra",
+    "Hobart",
+    "Darwin",
+    "Gold Coast",
+    "Newcastle",
+    "Wollongong",
+    "NSW",
+    "VIC",
+    "QLD",
+    "WA",
+    "SA",
+    "TAS",
+    "NT",
+    "ACT",
 ]
 
-MAX_EXPERIENCE: int = 3
+MAX_EXPERIENCE: int = 2

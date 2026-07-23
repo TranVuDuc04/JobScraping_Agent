@@ -95,7 +95,7 @@ Edit `.env` and set your Discord webhook URL.
 
 Job filter rules are configured in `rules/rule_config.py` (allowed titles, blocked titles, locations, max experience).
 
-The Seek search URL is configured in `config.py` (`SEEK_SEARCH_URL`).
+Search keywords and location are configured in `config.py` (`SEEK_SEARCH_KEYWORDS`, `SEEK_SEARCH_LOCATION`). Defaults target junior/graduate tech roles across Australia.
 
 ## Running Locally
 

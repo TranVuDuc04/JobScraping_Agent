@@ -3,14 +3,10 @@
 from playwright.async_api import Browser, BrowserContext, Page, Playwright, async_playwright
 
 import config
+from crawler.browser_config import BROWSER_ARGS, STEALTH_INIT_SCRIPT, get_context_options
 from utils.logger import Logger
 
 MAX_RETRIES = 3
-USER_AGENT = (
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-    "AppleWebKit/537.36 (KHTML, like Gecko) "
-    "Chrome/120.0.0.0 Safari/537.36"
-)
 
 
 class JobDetailCrawler:
@@ -34,9 +30,11 @@ class JobDetailCrawler:
 
         self._playwright = await async_playwright().start()
         self._browser = await self._playwright.chromium.launch(
-            headless=config.HEADLESS
+            headless=config.HEADLESS,
+            args=BROWSER_ARGS,
         )
-        self._context = await self._browser.new_context(user_agent=USER_AGENT)
+        self._context = await self._browser.new_context(**get_context_options())
+        await self._context.add_init_script(STEALTH_INIT_SCRIPT)
 
     async def close(self) -> None:
         """Close the browser and release all Playwright resources."""

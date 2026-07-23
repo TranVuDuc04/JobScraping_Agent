@@ -7,6 +7,8 @@ from playwright.async_api import Browser, BrowserContext, Page, Playwright, asyn
 
 import config
 from crawler.base import BaseCrawler
+from crawler.browser_config import BROWSER_ARGS, STEALTH_INIT_SCRIPT, get_context_options
+from crawler.diagnostics import save_page_diagnostics
 from utils.logger import Logger
 
 JOB_LINK_SELECTOR = (
@@ -83,15 +85,11 @@ class SeekCrawler(BaseCrawler):
         """Launch Chromium and open a new browser page."""
         self._playwright = await async_playwright().start()
         self._browser = await self._playwright.chromium.launch(
-            headless=config.HEADLESS
+            headless=config.HEADLESS,
+            args=BROWSER_ARGS,
         )
-        self._context = await self._browser.new_context(
-            user_agent=(
-                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-                "AppleWebKit/537.36 (KHTML, like Gecko) "
-                "Chrome/120.0.0.0 Safari/537.36"
-            ),
-        )
+        self._context = await self._browser.new_context(**get_context_options())
+        await self._context.add_init_script(STEALTH_INIT_SCRIPT)
         self._page = await self._context.new_page()
         self._page.set_default_timeout(config.PLAYWRIGHT_TIMEOUT)
 
@@ -101,14 +99,25 @@ class SeekCrawler(BaseCrawler):
             raise RuntimeError("Browser page is not initialized")
 
         self.logger.info("Opening Seek...")
-        await self._page.goto(self.search_url, wait_until="domcontentloaded")
+        response = await self._page.goto(
+            self.search_url,
+            wait_until="domcontentloaded",
+        )
+        if response is not None:
+            self.logger.info(f"HTTP status: {response.status}")
+
         await self._page.wait_for_load_state("load")
         await self._dismiss_cookie_banner()
-        await self._page.wait_for_selector(
-            JOB_LINK_SELECTOR,
-            state="attached",
-            timeout=config.PLAYWRIGHT_TIMEOUT,
-        )
+
+        try:
+            await self._page.wait_for_selector(
+                JOB_LINK_SELECTOR,
+                state="attached",
+                timeout=config.PLAYWRIGHT_TIMEOUT,
+            )
+        except Exception:
+            await save_page_diagnostics(self._page, self.logger)
+            raise
 
     async def _dismiss_cookie_banner(self) -> None:
         """Dismiss the cookie consent banner if it appears."""

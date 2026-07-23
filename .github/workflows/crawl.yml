@@ -10,7 +10,8 @@ jobs:
     env:
       DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
       HEADLESS: "true"
-      PLAYWRIGHT_TIMEOUT: "30000"
+      PLAYWRIGHT_TIMEOUT: "60000"
+      CI: "true"
 
     steps:
       - name: Checkout repository
@@ -41,3 +42,11 @@ jobs:
         run: |
           echo "Starting job crawl pipeline..."
           python main.py
+
+      - name: Upload crawler debug artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: crawler-debug-artifacts
+          path: artifacts/
+          if-no-files-found: ignore

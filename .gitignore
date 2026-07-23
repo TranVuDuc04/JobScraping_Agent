@@ -55,3 +55,4 @@ Thumbs.db
 # Logs and runtime storage
 logs/*.log
 storage/*.log
+artifacts/

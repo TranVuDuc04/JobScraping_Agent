@@ -91,6 +91,7 @@ Edit `.env` and set your Discord webhook URL.
 | `DISCORD_WEBHOOK` | Yes | — | Discord webhook URL for job notifications |
 | `HEADLESS` | No | `true` | Run Playwright in headless mode |
 | `PLAYWRIGHT_TIMEOUT` | No | `30000` | Browser timeout in milliseconds |
+| `USE_SEEK_API_FOR_URLS` | No | `false` (auto `true` on CI) | Use Seek search API instead of Playwright for URL discovery |
 
 Job filter rules are configured in `rules/rule_config.py` (allowed titles, blocked titles, locations, max experience).
 
@@ -170,4 +171,6 @@ Run the pipeline manually from the Actions tab:
 2. Go to **Actions** → **Crawl Jobs** → **Run workflow**
 
 The workflow uses `workflow_dispatch` only (no scheduling yet).
+
+On GitHub Actions (`CI=true`), job URL discovery uses Seek's public search API because Seek's HTML search page does not render job listings on datacenter IPs. Job detail pages are still fetched with Playwright under `xvfb-run`.
 # JobScraping_Agent

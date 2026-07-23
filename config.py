@@ -10,6 +10,10 @@ load_dotenv()
 DISCORD_WEBHOOK: str = os.getenv("DISCORD_WEBHOOK", "").strip()
 HEADLESS: bool = os.getenv("HEADLESS", "true").lower() == "true"
 PLAYWRIGHT_TIMEOUT: int = int(os.getenv("PLAYWRIGHT_TIMEOUT", "30000"))
+USE_SEEK_API_FOR_URLS: bool = (
+    os.getenv("USE_SEEK_API_FOR_URLS", "").lower() == "true"
+    or os.getenv("CI", "").lower() == "true"
+)
 SEEK_SEARCH_URL: str = (
     "https://www.seek.com.au/project-coordinator-jobs/in-All-Melbourne-VIC"
 )

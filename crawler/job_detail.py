@@ -35,6 +35,21 @@ class JobDetailCrawler:
         )
         self._context = await self._browser.new_context(**get_context_options())
         await self._context.add_init_script(STEALTH_INIT_SCRIPT)
+        await self._warmup_session()
+
+    async def _warmup_session(self) -> None:
+        """Establish a Seek session before fetching individual job pages."""
+        if self._context is None:
+            return
+
+        page = await self._context.new_page()
+        try:
+            self.logger.info("Warming up Seek session")
+            await page.goto("https://www.seek.com.au", wait_until="domcontentloaded")
+            await page.wait_for_load_state("load")
+            await self._dismiss_cookie_banner(page)
+        finally:
+            await page.close()
 
     async def close(self) -> None:
         """Close the browser and release all Playwright resources."""
@@ -110,6 +125,12 @@ class JobDetailCrawler:
             await page.goto(url, wait_until="domcontentloaded")
             await page.wait_for_load_state("load")
             await self._dismiss_cookie_banner(page)
+            await page.wait_for_selector(
+                '[data-automation="job-detail-title"], '
+                '[data-automation="jobAdDetails"]',
+                state="attached",
+                timeout=config.PLAYWRIGHT_TIMEOUT,
+            )
             return await page.content()
         except Exception:
             return None

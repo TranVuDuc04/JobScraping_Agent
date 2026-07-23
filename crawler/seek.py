@@ -9,6 +9,7 @@ import config
 from crawler.base import BaseCrawler
 from crawler.browser_config import BROWSER_ARGS, STEALTH_INIT_SCRIPT, get_context_options
 from crawler.diagnostics import save_page_diagnostics
+from crawler.seek_api import fetch_job_urls
 from utils.logger import Logger
 
 JOB_LINK_SELECTOR = (
@@ -46,6 +47,10 @@ class SeekCrawler(BaseCrawler):
             RuntimeError: If all retry attempts fail.
         """
         self.logger.info("Starting crawler")
+
+        if config.USE_SEEK_API_FOR_URLS:
+            return self._crawl_via_api()
+
         last_error: Exception | None = None
 
         for attempt in range(1, MAX_RETRIES + 1):
@@ -65,6 +70,19 @@ class SeekCrawler(BaseCrawler):
         raise RuntimeError(
             f"Seek crawler failed after {MAX_RETRIES} attempts"
         ) from last_error
+
+    def _crawl_via_api(self) -> list[str]:
+        """Fetch job URLs via Seek's public search API (CI-compatible path)."""
+        self.logger.info("Using Seek search API for URL discovery")
+        try:
+            urls = fetch_job_urls(self.search_url)
+        except Exception as exc:
+            self.logger.error(f"Seek API request failed: {exc}")
+            raise RuntimeError("Seek API URL discovery failed") from exc
+
+        self.logger.info(f"Found {len(urls)} jobs")
+        self.logger.info("Returning URLs")
+        return urls
 
     async def _run_crawl(self) -> list[str]:
         """Execute a single crawl attempt.

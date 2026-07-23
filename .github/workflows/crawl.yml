@@ -9,7 +9,7 @@ jobs:
 
     env:
       DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
-      HEADLESS: "true"
+      HEADLESS: "false"
       PLAYWRIGHT_TIMEOUT: "60000"
       CI: "true"
 
@@ -41,7 +41,7 @@ jobs:
       - name: Run application
         run: |
           echo "Starting job crawl pipeline..."
-          python main.py
+          xvfb-run -a python main.py
 
       - name: Upload crawler debug artifacts
         if: failure()

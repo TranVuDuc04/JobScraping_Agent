@@ -39,5 +39,7 @@ def get_context_options() -> dict[str, object]:
         "viewport": {"width": 1920, "height": 1080},
         "locale": "en-AU",
         "timezone_id": "Australia/Melbourne",
+        "geolocation": {"latitude": -37.8136, "longitude": 144.9631},
+        "permissions": ["geolocation"],
         "extra_http_headers": {"Accept-Language": "en-AU,en;q=0.9"},
     }

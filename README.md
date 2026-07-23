@@ -155,9 +155,19 @@ On subsequent runs, previously notified jobs are skipped automatically.
 
 ## Roadmap
 
+- [x] GitHub Actions manual workflow
 - [ ] LinkedIn crawler
 - [ ] GitHub Actions scheduled runs
 - [ ] SQLite storage backend
 - [ ] Rich Discord embeds
 - [ ] Multi-search URL support
+
+## GitHub Actions
+
+Run the pipeline manually from the Actions tab:
+
+1. Add repository secret `DISCORD_WEBHOOK` with your webhook URL
+2. Go to **Actions** → **Crawl Jobs** → **Run workflow**
+
+The workflow uses `workflow_dispatch` only (no scheduling yet).
 # JobScraping_Agent

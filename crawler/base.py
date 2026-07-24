@@ -2,22 +2,19 @@
 
 from abc import ABC, abstractmethod
 
+from models.job import Job
+
 
 class BaseCrawler(ABC):
-    """Abstract base class for job site crawlers.
+    """Abstract base class for job site crawlers."""
 
-    Subclasses must implement the crawl method to fetch job listing URLs
-    from a specific source platform.
-    """
+    source_name: str = "Unknown"
 
     @abstractmethod
-    async def crawl(self) -> list[str]:
-        """Fetch job detail URLs from the target platform.
+    async def crawl(self) -> list[Job]:
+        """Fetch job listings from the target platform.
 
         Returns:
-            A list of job detail page URLs.
-
-        Raises:
-            NotImplementedError: If the subclass has not implemented this method.
+            A list of parsed Job objects from the source.
         """
         raise NotImplementedError

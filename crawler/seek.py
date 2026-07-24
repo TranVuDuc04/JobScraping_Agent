@@ -9,7 +9,10 @@ import config
 from crawler.base import BaseCrawler
 from crawler.browser_config import BROWSER_ARGS, STEALTH_INIT_SCRIPT, get_context_options
 from crawler.diagnostics import save_page_diagnostics
-from crawler.seek_api import fetch_job_urls, fetch_job_urls_for_keywords
+from crawler.job_detail import JobDetailCrawler
+from crawler.seek_api import fetch_job_urls_for_keywords
+from models.job import Job
+from parser.parser import JobParser
 from utils.logger import Logger
 
 JOB_LINK_SELECTOR = (
@@ -22,7 +25,9 @@ JOB_ID_PATTERN = re.compile(r"/job/(\d+)")
 
 
 class SeekCrawler(BaseCrawler):
-    """Crawler that collects job detail URLs from Seek Australia."""
+    """Crawler that collects job listings from Seek Australia."""
+
+    source_name = "Seek"
 
     def __init__(self, search_url: str | None = None) -> None:
         """Initialize the Seek crawler.
@@ -39,25 +44,31 @@ class SeekCrawler(BaseCrawler):
         self._context: BrowserContext | None = None
         self._page: Page | None = None
 
-    async def crawl(self) -> list[str]:
-        """Fetch job detail URLs from Seek with automatic retries.
+    async def crawl(self) -> list[Job]:
+        """Fetch parsed job listings from Seek with automatic retries.
 
         Returns:
-            A deduplicated list of Seek job detail URLs.
+            A deduplicated list of Seek Job objects.
 
         Raises:
             RuntimeError: If all retry attempts fail.
         """
         self.logger.info("Starting crawler")
+        urls = await self._discover_urls()
+        jobs = await self._fetch_jobs_from_urls(urls)
+        self.logger.info(f"Returning {len(jobs)} jobs")
+        return jobs
 
+    async def _discover_urls(self) -> list[str]:
+        """Discover job detail URLs from Seek."""
         if config.USE_SEEK_API_FOR_URLS:
-            return self._crawl_via_api()
+            return self._discover_urls_via_api()
 
         last_error: Exception | None = None
 
         for attempt in range(1, MAX_RETRIES + 1):
             try:
-                urls = await self._run_crawl()
+                urls = await self._run_url_crawl()
                 self.logger.info("Returning URLs")
                 return urls
             except Exception as exc:
@@ -73,7 +84,7 @@ class SeekCrawler(BaseCrawler):
             f"Seek crawler failed after {MAX_RETRIES} attempts"
         ) from last_error
 
-    def _crawl_via_api(self) -> list[str]:
+    def _discover_urls_via_api(self) -> list[str]:
         """Fetch job URLs via Seek's public search API (CI-compatible path)."""
         self.logger.info("Using Seek search API for URL discovery")
         try:
@@ -85,11 +96,29 @@ class SeekCrawler(BaseCrawler):
             self.logger.error(f"Seek API request failed: {exc}")
             raise RuntimeError("Seek API URL discovery failed") from exc
 
-        self.logger.info(f"Found {len(urls)} jobs across {len(config.SEEK_SEARCH_KEYWORDS)} searches")
-        self.logger.info("Returning URLs")
+        self.logger.info(
+            f"Found {len(urls)} jobs across {len(config.SEEK_SEARCH_KEYWORDS)} searches"
+        )
         return urls
 
-    async def _run_crawl(self) -> list[str]:
+    async def _fetch_jobs_from_urls(self, urls: list[str]) -> list[Job]:
+        """Fetch and parse Seek job detail pages."""
+        parser = JobParser()
+        jobs: list[Job] = []
+
+        async with JobDetailCrawler() as detail_crawler:
+            for url in urls:
+                html = await detail_crawler.fetch_job(url)
+                if not html:
+                    continue
+                try:
+                    jobs.append(parser.parse(html, url))
+                except Exception as exc:
+                    self.logger.error(f"Failed to parse Seek job {url}: {exc}")
+
+        return jobs
+
+    async def _run_url_crawl(self) -> list[str]:
         """Execute a single crawl attempt across all configured searches."""
         try:
             await self._launch_browser()

@@ -2,6 +2,12 @@ name: Crawl Jobs
 
 on:
   workflow_dispatch:
+  schedule:
+    # Every 6 hours at 00:00, 06:00, 12:00, and 18:00 UTC.
+    # Approx Melbourne (AEST, UTC+10): 10:00, 16:00, 22:00, 04:00
+    # Approx Melbourne (AEDT, UTC+11): 11:00, 17:00, 23:00, 05:00
+    # GitHub cron always runs in UTC and does not adjust for daylight saving.
+    - cron: "0 */6 * * *"
 
 jobs:
   crawl:
@@ -14,6 +20,9 @@ jobs:
       CI: "true"
 
     steps:
+      - name: Log workflow trigger
+        run: echo "Workflow trigger: ${{ github.event_name }}"
+
       - name: Checkout repository
         uses: actions/checkout@v4
 

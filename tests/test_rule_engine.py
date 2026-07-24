@@ -95,6 +95,7 @@ def build_job(test_case: TestCase) -> Job:
         company="Test Company",
         location=test_case.location,
         salary=None,
+        employment_type="Full time",
         description=test_case.description,
         url="https://example.com/job/test",
         source="Seek",

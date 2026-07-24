@@ -13,6 +13,7 @@ SELECTORS = {
     "company": '[data-automation="advertiser-name"]',
     "location": '[data-automation="job-detail-location"]',
     "salary": '[data-automation="job-detail-salary"]',
+    "employment_type": '[data-automation="job-detail-work-type"]',
     "description": '[data-automation="jobAdDetails"]',
     "page": '[data-automation="jobDetailsPage"]',
 }
@@ -50,6 +51,7 @@ class JobParser:
         company = self._extract_company(soup)
         location = self._extract_location(soup)
         salary = self._extract_salary(soup)
+        employment_type = self._extract_employment_type(soup)
         description = self._extract_description(soup)
         posted_date = self._extract_posted_date(soup)
 
@@ -60,6 +62,7 @@ class JobParser:
             company=company or "",
             location=location,
             salary=salary,
+            employment_type=employment_type,
             description=description or "",
             url=url,
             source=SOURCE,
@@ -112,6 +115,10 @@ class JobParser:
     def _extract_salary(self, soup: BeautifulSoup) -> str | None:
         """Extract the salary information."""
         return self._select_text(soup, SELECTORS["salary"])
+
+    def _extract_employment_type(self, soup: BeautifulSoup) -> str | None:
+        """Extract the employment type (e.g. Full time)."""
+        return self._select_text(soup, SELECTORS["employment_type"])
 
     def _extract_description(self, soup: BeautifulSoup) -> str | None:
         """Extract the full job description as plain text."""

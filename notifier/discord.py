@@ -3,6 +3,9 @@
 import requests
 
 from models.job import Job
+from rules.filters import get_matched_keywords
+
+EMBED_COLOR_GREEN = 0x57F287
 
 
 class DiscordNotifier:
@@ -17,11 +20,11 @@ class DiscordNotifier:
         self.webhook_url = webhook_url
 
     def send(self, job: Job, reasons: list[str] | None = None) -> None:
-        """Send a plain-text job notification to Discord.
+        """Send a compact embed notification to Discord.
 
         Args:
             job: Job to notify about.
-            reasons: Optional rule engine match reasons.
+            reasons: Optional rule engine match reasons (unused in embed display).
 
         Raises:
             ValueError: If the webhook URL is not configured.
@@ -30,47 +33,36 @@ class DiscordNotifier:
         if not self.webhook_url:
             raise ValueError("DISCORD_WEBHOOK is not configured")
 
-        message = self._format_message(job, reasons or [])
+        embed = self._build_embed(job)
         response = requests.post(
             self.webhook_url,
-            json={"content": message},
+            json={"embeds": [embed]},
             timeout=30,
         )
         response.raise_for_status()
 
-    def _format_message(self, job: Job, reasons: list[str]) -> str:
-        """Build the plain-text Discord notification body."""
-        reason_lines = self._format_reasons(job, reasons)
-        posted = job.posted_date or "Unknown"
-        salary = job.salary or "Unknown"
-        location = job.location or "Unknown"
+    def _build_embed(self, job: Job) -> dict[str, object]:
+        """Build a compact Discord embed for a job listing."""
+        keywords = get_matched_keywords(job, limit=3)
+        keyword_text = " • ".join(keywords) if keywords else "N/A"
+        location = job.location or "N/A"
+        salary = job.salary or "N/A"
+        posted = job.posted_date or "N/A"
+        employment_type = job.employment_type or "N/A"
 
-        return (
-            "🔥 New Job\n\n"
-            f"{job.title}\n\n"
-            f"{job.company}\n\n"
-            f"{location}\n\n"
-            f"{salary}\n\n"
-            f"{posted}\n\n"
-            f"{job.source}\n\n"
-            "Reasons\n\n"
-            f"{reason_lines}\n\n"
-            "Apply\n\n"
-            f"{job.url}"
-        )
-
-    def _format_reasons(self, job: Job, reasons: list[str]) -> str:
-        """Format rule engine reasons as bullet points."""
-        if not reasons:
-            return "• Matched"
-
-        lines: list[str] = []
-        for reason in reasons:
-            if reason == "Matched title":
-                lines.append("• Title matched")
-            elif reason == "Matched location":
-                location = job.location or "Location"
-                lines.append(f"• {location} matched")
-            else:
-                lines.append(f"• {reason}")
-        return "\n".join(lines)
+        return {
+            "title": f"🟢 {job.title}",
+            "url": job.url,
+            "color": EMBED_COLOR_GREEN,
+            "description": (
+                f"🏢 {job.company}\n\n"
+                f"🏷 {keyword_text}\n\n"
+                f"🔗 [Apply]({job.url})"
+            ),
+            "fields": [
+                {"name": "📍 Location", "value": location, "inline": True},
+                {"name": "💰 Salary", "value": salary, "inline": True},
+                {"name": "🕒 Posted", "value": posted, "inline": True},
+                {"name": "💼 Type", "value": employment_type, "inline": True},
+            ],
+        }

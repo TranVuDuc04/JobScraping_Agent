@@ -4,6 +4,7 @@ import re
 
 from models.job import Job
 from rules import rule_config
+from rules.filters import is_recent_job
 from utils.logger import Logger
 
 EXPERIENCE_RANGE_PATTERN = re.compile(
@@ -73,6 +74,10 @@ class RuleEngine:
 
         reasons.append("Matched location")
         self.logger.info("Passed location")
+
+        if not is_recent_job(job.posted_date):
+            self.logger.info("Job too old")
+            return False, ["Job too old"]
 
         experience_ok, experience_reason = self._match_experience(job)
         if not experience_ok:

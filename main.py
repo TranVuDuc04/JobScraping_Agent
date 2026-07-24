@@ -38,9 +38,12 @@ from dataclasses import dataclass
 import config
 from crawler.job_detail import JobDetailCrawler
 from crawler.seek import SeekCrawler
+from models.job import Job
 from notifier.discord import DiscordNotifier
 from parser.parser import JobParser
+from rules import rule_config
 from rules.engine import RuleEngine
+from rules.filters import location_priority
 from storage.duplicate_checker import DuplicateChecker
 from utils.logger import Logger
 
@@ -60,46 +63,86 @@ class RunStats:
     errors: int = 0
 
 
-async def process_job(
-    url: str,
+@dataclass
+class PendingNotification:
+    """A matched job waiting to be sent to Discord."""
+
+    job: Job
+    reasons: list[str]
+
+
+async def collect_pending_jobs(
+    urls: list[str],
     detail_crawler: JobDetailCrawler,
     parser: JobParser,
     engine: RuleEngine,
+    duplicate_checker: DuplicateChecker,
+    logger: Logger,
+    stats: RunStats,
+) -> list[PendingNotification]:
+    """Fetch, parse, filter, and collect jobs eligible for notification."""
+    pending: list[PendingNotification] = []
+
+    for url in urls:
+        try:
+            html = await detail_crawler.fetch_job(url)
+            if not html:
+                stats.errors += 1
+                continue
+
+            job = parser.parse(html, url)
+            stats.parsed += 1
+            logger.info("Job parsed")
+
+            matched, reasons = engine.evaluate(job)
+            if not matched:
+                stats.skipped += 1
+                logger.info("Rule Engine rejected")
+                logger.info("Skip notification")
+                continue
+
+            stats.matched += 1
+            logger.info("Rule Engine passed")
+            logger.info("Duplicate check")
+
+            if duplicate_checker.is_sent(job.url):
+                stats.duplicates += 1
+                logger.info("Duplicate job detected")
+                logger.info("Skip notification")
+                continue
+
+            pending.append(PendingNotification(job=job, reasons=reasons))
+        except Exception as exc:
+            stats.errors += 1
+            logger.error(f"Failed to process job {url}: {exc}")
+
+    stats.new_jobs = len(pending)
+    return pending
+
+
+def prioritize_notifications(
+    pending: list[PendingNotification],
+) -> list[PendingNotification]:
+    """Sort jobs by location priority and apply the notification limit."""
+    pending.sort(key=lambda item: location_priority(item.job.location))
+    return pending[: rule_config.MAX_NOTIFICATIONS_PER_RUN]
+
+
+async def send_notifications(
+    pending: list[PendingNotification],
     notifier: DiscordNotifier,
     duplicate_checker: DuplicateChecker,
     logger: Logger,
     stats: RunStats,
 ) -> None:
-    """Fetch, parse, evaluate, and optionally notify for one job URL."""
-    try:
-        html = await detail_crawler.fetch_job(url)
-        if not html:
-            stats.errors += 1
-            return
-        job = parser.parse(html, url)
-        stats.parsed += 1
-        logger.info("Job parsed")
-        matched, reasons = engine.evaluate(job)
-        if not matched:
-            stats.skipped += 1
-            logger.info("Rule Engine rejected")
-            logger.info("Skip notification")
-            return
-        stats.matched += 1
-        logger.info("Rule Engine passed")
-        logger.info("Duplicate check")
-        if duplicate_checker.is_sent(job.url):
-            stats.duplicates += 1
-            logger.info("Duplicate job detected")
-            logger.info("Skip notification")
-            return
-        stats.new_jobs += 1
+    """Send Discord notifications for prioritized jobs."""
+    for item in pending:
         logger.info("New job")
         logger.info("Sending Discord notification")
         try:
-            notifier.send(job, reasons)
+            notifier.send(item.job, item.reasons)
             stats.sent += 1
-            duplicate_checker.mark_sent(job.url)
+            duplicate_checker.mark_sent(item.job.url)
             logger.info("Marked as sent")
             logger.info("Notification sent")
         except Exception as exc:
@@ -107,9 +150,6 @@ async def process_job(
             stats.errors += 1
             logger.error(f"Discord notification failed: {exc}")
         logger.info("Finished processing job")
-    except Exception as exc:
-        stats.errors += 1
-        logger.error(f"Failed to process job {url}: {exc}")
 
 
 def print_summary(stats: RunStats, elapsed: float) -> None:
@@ -129,19 +169,26 @@ async def run() -> None:
     logger, stats = Logger("main"), RunStats()
     duplicate_checker = DuplicateChecker()
     duplicate_checker.load()
+
     urls = await SeekCrawler().crawl()
     stats.crawled = len(urls)
+
     parser, engine = JobParser(), RuleEngine()
     notifier = DiscordNotifier(config.DISCORD_WEBHOOK)
+
     try:
         async with JobDetailCrawler() as detail_crawler:
-            for url in urls:
-                await process_job(
-                    url, detail_crawler, parser, engine, notifier,
-                    duplicate_checker, logger, stats,
-                )
+            pending = await collect_pending_jobs(
+                urls, detail_crawler, parser, engine,
+                duplicate_checker, logger, stats,
+            )
+            prioritized = prioritize_notifications(pending)
+            await send_notifications(
+                prioritized, notifier, duplicate_checker, logger, stats,
+            )
     finally:
         duplicate_checker.save()
+
     print_summary(stats, time.perf_counter() - start)
 
 

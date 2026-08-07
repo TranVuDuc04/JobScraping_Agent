@@ -1,5 +1,7 @@
 """Indeed job site crawler."""
 
+import asyncio
+import time
 from urllib.parse import quote_plus
 
 import config
@@ -7,6 +9,7 @@ from crawler.base import BaseCrawler
 from crawler.diagnostics import log_page_state, save_page_diagnostics
 from crawler.indeed_uc import crawl_indeed_uc
 from crawler.playwright_session import PlaywrightSession
+from crawler.uc_browser import page_is_verification
 from models.job import Job
 from utils.logger import Logger
 
@@ -38,13 +41,16 @@ class IndeedCrawler(BaseCrawler):
         self.logger.info("Starting crawler")
 
         if config.INDEED_USE_UNDETECTED_CHROME:
-            self.logger.info("Using undetected-chromedriver for Indeed")
+            self.logger.info(
+                f"Using undetected-chromedriver for Indeed (HEADLESS={config.HEADLESS})"
+            )
             try:
                 return await crawl_indeed_uc(self.logger)
             except Exception as exc:
-                self.logger.warning(
-                    f"Indeed undetected-chromedriver failed ({exc}) - trying Playwright"
-                )
+                raise RuntimeError(
+                    f"Indeed undetected-chromedriver failed ({exc}). "
+                    "Run with HEADLESS=false locally. On CI, ensure Google Chrome is installed."
+                ) from exc
 
         return await self._crawl_playwright()
 
@@ -62,6 +68,8 @@ class IndeedCrawler(BaseCrawler):
                 page,
                 results_selector=INDEED_RESULTS_CONTAINER,
             )
+
+            await self._wait_for_indeed_results(page)
 
             blocked_reason = await self._detect_blocked_page(page)
             if blocked_reason:
@@ -90,6 +98,31 @@ class IndeedCrawler(BaseCrawler):
         query = quote_plus(config.INDEED_SEARCH_KEYWORDS)
         location = quote_plus(config.INDEED_SEARCH_LOCATION)
         return f"https://au.indeed.com/jobs?q={query}&l={location}"
+
+    async def _wait_for_indeed_results(self, page) -> None:
+        """Wait for bot challenges to clear before checking for job cards."""
+        deadline = time.monotonic() + config.PLAYWRIGHT_TIMEOUT / 1000
+        last_log = 0.0
+
+        while time.monotonic() < deadline:
+            title = (await page.title()).lower()
+            html = (await page.content()).lower()
+
+            if page_is_verification(title, html):
+                if time.monotonic() - last_log > 5:
+                    self.logger.info(
+                        f"Indeed challenge page detected ({title!r}) - waiting to clear..."
+                    )
+                    last_log = time.monotonic()
+                await asyncio.sleep(2)
+                continue
+
+            if await page.locator(INDEED_RESULTS_CONTAINER).count() > 0:
+                return
+
+            await asyncio.sleep(2)
+
+        raise RuntimeError("Indeed challenge did not clear or job results not found")
 
     async def _detect_blocked_page(self, page) -> str | None:
         """Detect CAPTCHA or bot-protection pages (not normal OneTrust cookie banners)."""

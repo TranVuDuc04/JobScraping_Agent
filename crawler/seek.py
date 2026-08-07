@@ -114,44 +114,55 @@ class SeekCrawler(BaseCrawler):
         ) from last_error
 
     async def _fetch_jobs_from_listings(self, listings: list[SeekListing]) -> list[Job]:
-        """Fetch and parse recent Seek job detail pages concurrently."""
+        """Fetch Seek jobs from API listings, preferring links over full detail pages."""
         if not listings:
             return []
 
         if config.SEEK_SKIP_DETAIL_CRAWL:
-            self.logger.warning(
-                "SEEK_SKIP_DETAIL_CRAWL enabled - using Seek API metadata only"
+            self.logger.info(
+                f"Using Seek API metadata only for {len(listings)} jobs (detail crawl skipped)"
             )
-            return [listing_to_job(listing) for listing in listings]
+            return self._listings_to_jobs(listings)
 
         parser = JobParser()
         urls = [listing.url for listing in listings]
         self.logger.info("Detail crawling started...")
 
-        if config.SEEK_USE_UNDETECTED_CHROME:
-            self.logger.info(
-                "Using undetected-chromedriver for Seek detail pages "
-                f"(timeout={config.SEEK_DETAIL_TIMEOUT}ms, sequential)"
-            )
-            try:
-                html_results, stats = await fetch_seek_details_uc(urls, self.logger)
-            except Exception as exc:
-                self.logger.warning(
-                    f"undetected-chromedriver failed ({exc}) - falling back to Playwright"
+        try:
+            if config.SEEK_USE_UNDETECTED_CHROME:
+                self.logger.info(
+                    "Using undetected-chromedriver for Seek detail pages "
+                    f"(timeout={config.SEEK_DETAIL_TIMEOUT}ms, sequential)"
                 )
+                try:
+                    html_results, stats = await fetch_seek_details_uc(urls, self.logger)
+                except Exception as exc:
+                    self.logger.warning(
+                        f"undetected-chromedriver failed ({exc}) - falling back to Playwright"
+                    )
+                    html_results, stats = await self._fetch_details_playwright(urls)
+            else:
                 html_results, stats = await self._fetch_details_playwright(urls)
-        else:
-            html_results, stats = await self._fetch_details_playwright(urls)
 
-        if stats.verification_blocked > 0:
+            if stats.verification_blocked > 0:
+                self.logger.warning(
+                    "Seek human verification blocked detail pages - "
+                    "falling back to API metadata for failed jobs"
+                )
+
+            jobs, api_fallback = self._parse_detail_results(listings, html_results, parser)
+            self._log_detail_stats(stats, api_fallback=api_fallback)
+            return jobs
+        except Exception as exc:
             self.logger.warning(
-                "Seek human verification blocked detail pages - "
-                "falling back to API metadata for failed jobs"
+                f"Seek detail crawl failed ({exc}) - "
+                f"using API metadata for all {len(listings)} jobs"
             )
+            return self._listings_to_jobs(listings)
 
-        jobs, api_fallback = self._parse_detail_results(listings, html_results, parser)
-        self._log_detail_stats(stats, api_fallback=api_fallback)
-        return jobs
+    def _listings_to_jobs(self, listings: list[SeekListing]) -> list[Job]:
+        """Convert API listings to jobs using link + basic metadata only."""
+        return [listing_to_job(listing) for listing in listings]
 
     async def _fetch_details_playwright(
         self,

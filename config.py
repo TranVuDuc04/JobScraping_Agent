@@ -38,7 +38,12 @@ def ensure_playwright_browsers_path() -> None:
 ensure_playwright_browsers_path()
 
 DISCORD_WEBHOOK: str = os.getenv("DISCORD_WEBHOOK", "").strip()
-HEADLESS: bool = os.getenv("HEADLESS", "true").lower() == "true"
+INDEED_USE_UNDETECTED_CHROME: bool = os.getenv(
+    "INDEED_USE_UNDETECTED_CHROME", "true"
+).lower() in ("1", "true", "yes")
+# Indeed UC needs a real browser window; headless mode is often blocked.
+_default_headless = "false" if INDEED_USE_UNDETECTED_CHROME else "true"
+HEADLESS: bool = os.getenv("HEADLESS", _default_headless).lower() == "true"
 PLAYWRIGHT_TIMEOUT: int = int(os.getenv("PLAYWRIGHT_TIMEOUT", "30000"))
 SEEK_DETAIL_TIMEOUT: int = int(
     os.getenv("SEEK_DETAIL_TIMEOUT", os.getenv("PLAYWRIGHT_TIMEOUT", "30000"))
@@ -46,18 +51,20 @@ SEEK_DETAIL_TIMEOUT: int = int(
 SEEK_DETAIL_CONCURRENCY: int = int(os.getenv("SEEK_DETAIL_CONCURRENCY", "2"))
 SEEK_DETAIL_DIAGNOSTICS_LIMIT: int = int(os.getenv("SEEK_DETAIL_DIAGNOSTICS_LIMIT", "3"))
 SEEK_API_FALLBACK: bool = os.getenv("SEEK_API_FALLBACK", "true").lower() in ("1", "true", "yes")
-SEEK_SKIP_DETAIL_CRAWL: bool = os.getenv("SEEK_SKIP_DETAIL_CRAWL", "").lower() in ("1", "true", "yes")
+SEEK_SKIP_DETAIL_CRAWL: bool = os.getenv("SEEK_SKIP_DETAIL_CRAWL", "true").lower() in (
+    "1",
+    "true",
+    "yes",
+)
 SEEK_USE_UNDETECTED_CHROME: bool = os.getenv(
     "SEEK_USE_UNDETECTED_CHROME", ""
 ).lower() in ("1", "true", "yes")
-INDEED_USE_UNDETECTED_CHROME: bool = os.getenv(
-    "INDEED_USE_UNDETECTED_CHROME", "true"
-).lower() in ("1", "true", "yes")
 CONSENT_ACTION_TIMEOUT: int = int(os.getenv("CONSENT_ACTION_TIMEOUT", "5000"))
 DEBUG: bool = os.getenv("DEBUG", "").lower() in ("1", "true", "yes")
-USE_SEEK_API_FOR_URLS: bool = (
-    os.getenv("USE_SEEK_API_FOR_URLS", "").lower() == "true"
-    or os.getenv("CI", "").lower() == "true"
+USE_SEEK_API_FOR_URLS: bool = os.getenv("USE_SEEK_API_FOR_URLS", "true").lower() in (
+    "1",
+    "true",
+    "yes",
 )
 
 INDEED_SEARCH_KEYWORDS: str = "junior software engineer"

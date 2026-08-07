@@ -24,8 +24,10 @@ jobs:
     env:
       DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
       HEADLESS: "false"
+      USE_SEEK_API_FOR_URLS: "true"
+      SEEK_SKIP_DETAIL_CRAWL: "true"
+      INDEED_USE_UNDETECTED_CHROME: "true"
       PLAYWRIGHT_TIMEOUT: "60000"
-      CI: "true"
 
     steps:
       - name: Log workflow trigger
@@ -34,6 +36,9 @@ jobs:
 
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Install Google Chrome for Indeed UC
+        uses: browser-actions/setup-chrome@v1
 
       - name: Setup Python 3.12
         uses: actions/setup-python@v5

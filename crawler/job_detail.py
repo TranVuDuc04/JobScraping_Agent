@@ -1,12 +1,99 @@
 """Job detail page crawler."""
 
-from playwright.async_api import Browser, BrowserContext, Page, Playwright, async_playwright
+import asyncio
+import time
+from dataclasses import dataclass, field
+
+from playwright.async_api import Browser, BrowserContext, Page, Playwright
+from playwright.async_api import TimeoutError as PlaywrightTimeoutError
+from playwright.async_api import async_playwright
 
 import config
 from crawler.browser_config import BROWSER_ARGS, STEALTH_INIT_SCRIPT, get_context_options
+from crawler.consent import dismiss_consent_if_present
+from crawler.diagnostics import is_verification_page, job_id_from_url, save_page_diagnostics
 from utils.logger import Logger
 
-MAX_RETRIES = 3
+MAX_TRANSIENT_RETRIES = 2
+JOB_DETAIL_SELECTOR = (
+    '[data-automation="job-detail-title"], '
+    '[data-automation="jobAdDetails"]'
+)
+
+
+@dataclass
+class DetailCrawlStats:
+    """Metrics for Seek detail page fetching."""
+
+    total: int = 0
+    successful: int = 0
+    failed: int = 0
+    verification_blocked: int = 0
+    aborted_early: bool = False
+    total_seconds: float = 0.0
+    per_job_seconds: list[float] = field(default_factory=list)
+
+    @property
+    def average_seconds(self) -> float:
+        """Return the average fetch time for attempted jobs."""
+        if not self.per_job_seconds:
+            return 0.0
+        return sum(self.per_job_seconds) / len(self.per_job_seconds)
+
+
+def format_fetch_error(exc: Exception) -> str:
+    """Format an exception for logging, including empty-message cases."""
+    message = str(exc).strip()
+    if message:
+        return f"{exc.__class__.__name__}: {message}"
+    return exc.__class__.__name__
+
+
+def is_retryable_error(exc: Exception) -> bool:
+    """Return True only for errors that may succeed on a quick retry."""
+    if isinstance(exc, PlaywrightTimeoutError):
+        return False
+
+    if isinstance(exc, TimeoutError):
+        return False
+
+    if isinstance(exc, asyncio.CancelledError):
+        return False
+
+    message = str(exc).lower()
+    non_retryable_markers = (
+        "timeout",
+        "target closed",
+        "target page, context or browser has been closed",
+        "net::err_aborted",
+        "net::err_blocked",
+        "403",
+        "404",
+        "access denied",
+        "blocked",
+        "invalid url",
+    )
+    if any(marker in message for marker in non_retryable_markers):
+        return False
+
+    retryable_markers = (
+        "net::err_connection",
+        "connection reset",
+        "econnreset",
+        "502",
+        "503",
+        "504",
+        "temporarily unavailable",
+    )
+    return any(marker in message for marker in retryable_markers)
+
+
+def _detail_timeouts() -> tuple[int, int]:
+    """Split the detail timeout budget between navigation and selector waits."""
+    total = config.SEEK_DETAIL_TIMEOUT
+    goto_timeout = max(int(total * 0.5), 5000)
+    selector_timeout = max(total - goto_timeout, 5000)
+    return goto_timeout, selector_timeout
 
 
 class JobDetailCrawler:
@@ -22,20 +109,29 @@ class JobDetailCrawler:
         self._playwright: Playwright | None = None
         self._browser: Browser | None = None
         self._context: BrowserContext | None = None
+        self._start_lock = asyncio.Lock()
+        self._active_lock = asyncio.Lock()
+        self._active_fetches = 0
+        self._closing = False
+        self._open_pages: set[Page] = set()
+        self._diagnostics_saved = 0
+        self._abort_detail_crawl = False
+        self._verification_blocked = 0
 
     async def start(self) -> None:
         """Launch the browser and create a reusable context."""
-        if self._browser is not None:
-            return
+        async with self._start_lock:
+            if self._browser is not None:
+                return
 
-        self._playwright = await async_playwright().start()
-        self._browser = await self._playwright.chromium.launch(
-            headless=config.HEADLESS,
-            args=BROWSER_ARGS,
-        )
-        self._context = await self._browser.new_context(**get_context_options())
-        await self._context.add_init_script(STEALTH_INIT_SCRIPT)
-        await self._warmup_session()
+            self._playwright = await async_playwright().start()
+            self._browser = await self._playwright.chromium.launch(
+                headless=config.HEADLESS,
+                args=BROWSER_ARGS,
+            )
+            self._context = await self._browser.new_context(**get_context_options())
+            await self._context.add_init_script(STEALTH_INIT_SCRIPT)
+            await self._warmup_session()
 
     async def _warmup_session(self) -> None:
         """Establish a Seek session before fetching individual job pages."""
@@ -43,16 +139,28 @@ class JobDetailCrawler:
             return
 
         page = await self._context.new_page()
+        goto_timeout, _ = _detail_timeouts()
         try:
             self.logger.info("Warming up Seek session")
-            await page.goto("https://www.seek.com.au", wait_until="domcontentloaded")
-            await page.wait_for_load_state("load")
-            await self._dismiss_cookie_banner(page)
+            page.set_default_timeout(goto_timeout)
+            await page.goto(
+                "https://www.seek.com.au",
+                wait_until="domcontentloaded",
+                timeout=goto_timeout,
+            )
+            await dismiss_consent_if_present(page, self.logger, site="generic")
         finally:
-            await page.close()
+            await self._close_page(page)
 
     async def close(self) -> None:
-        """Close the browser and release all Playwright resources."""
+        """Close the browser after all in-flight detail tasks finish."""
+        if self._closing and self._browser is None:
+            return
+
+        self._closing = True
+        await self._wait_for_active_fetches()
+        await self._close_open_pages()
+
         if self._context is not None:
             await self._context.close()
             self._context = None
@@ -65,91 +173,219 @@ class JobDetailCrawler:
             await self._playwright.stop()
             self._playwright = None
 
+    async def _wait_for_active_fetches(self) -> None:
+        """Wait until no detail fetch tasks are still using the browser."""
+        while True:
+            async with self._active_lock:
+                if self._active_fetches == 0:
+                    return
+            await asyncio.sleep(0.05)
+
+    async def _close_open_pages(self) -> None:
+        """Close any pages still tracked as open."""
+        pages = list(self._open_pages)
+        for page in pages:
+            await self._close_page(page)
+
     async def fetch_job(self, url: str) -> str | None:
-        """Fetch the raw HTML content of a job detail page.
-
-        Args:
-            url: Job detail page URL.
-
-        Returns:
-            Full page HTML as a string, or None if all retries fail.
-        """
+        """Fetch the raw HTML content of a job detail page."""
         await self.start()
+        return await self._fetch_job_once(url)
 
-        for attempt in range(1, MAX_RETRIES + 1):
+    async def fetch_jobs_concurrent(
+        self,
+        urls: list[str],
+        concurrency: int | None = None,
+    ) -> tuple[list[str | None], DetailCrawlStats]:
+        """Fetch multiple job pages concurrently with bounded parallelism."""
+        await self.start()
+        self._closing = False
+        self._diagnostics_saved = 0
+        self._abort_detail_crawl = False
+        self._verification_blocked = 0
+        self._verification_blocked = 0
+
+        limit = concurrency or config.SEEK_DETAIL_CONCURRENCY
+        semaphore = asyncio.Semaphore(limit)
+        stats = DetailCrawlStats(total=len(urls))
+        results: list[str | None] = [None] * len(urls)
+
+        async def _fetch_one(index: int, url: str) -> None:
+            async with semaphore:
+                if self._closing or self._abort_detail_crawl:
+                    results[index] = None
+                    stats.failed += 1
+                    return
+
+                async with self._active_lock:
+                    self._active_fetches += 1
+
+                started = time.perf_counter()
+                try:
+                    html = await self._fetch_job_once(url)
+                    results[index] = html
+                    if html is None:
+                        stats.failed += 1
+                    else:
+                        stats.successful += 1
+                except asyncio.CancelledError:
+                    raise
+                except Exception as exc:
+                    self.logger.error(
+                        f"Job fetch failed for {url}: {format_fetch_error(exc)}"
+                    )
+                    results[index] = None
+                    stats.failed += 1
+                finally:
+                    elapsed = time.perf_counter() - started
+                    stats.per_job_seconds.append(elapsed)
+                    stats.total_seconds += elapsed
+                    async with self._active_lock:
+                        self._active_fetches -= 1
+
+        tasks = [
+            asyncio.create_task(_fetch_one(index, url))
+            for index, url in enumerate(urls)
+        ]
+        task_outcomes = await asyncio.gather(*tasks, return_exceptions=True)
+        for index, outcome in enumerate(task_outcomes):
+            if isinstance(outcome, Exception):
+                self.logger.error(
+                    f"Uncollected task exception for job index {index}: "
+                    f"{format_fetch_error(outcome)}"
+                )
+                results[index] = None
+
+        stats.verification_blocked = self._verification_blocked
+        stats.aborted_early = self._abort_detail_crawl
+        return results, stats
+
+    async def _fetch_job_once(self, url: str) -> str | None:
+        """Fetch one job without calling start(); safe for concurrent use."""
+        if self._closing or self._context is None:
+            return None
+
+        last_error: Exception | None = None
+
+        for attempt in range(1, MAX_TRANSIENT_RETRIES + 1):
             if attempt > 1:
                 self.logger.warning(f"Retry {attempt}")
 
-            html = await self._fetch_page(url)
-            if html is not None:
+            try:
+                html = await self._fetch_page(url)
                 self.logger.info("Job fetched")
                 return html
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:
+                last_error = exc
+                if not is_retryable_error(exc):
+                    self.logger.error(
+                        f"Job fetch failed for {url}: {format_fetch_error(exc)}"
+                    )
+                    return None
+                if attempt == MAX_TRANSIENT_RETRIES:
+                    break
 
-        self.logger.error("Failed after retries")
+        if last_error is not None:
+            self.logger.error(
+                f"Failed after retries for {url}: {format_fetch_error(last_error)}"
+            )
+        else:
+            self.logger.error(f"Failed after retries for {url}")
         return None
 
-    async def fetch_jobs(self, urls: list[str]) -> list[str | None]:
-        """Fetch HTML for multiple job URLs, continuing on individual failures.
+    async def _save_failure_diagnostics(
+        self,
+        page: Page,
+        url: str,
+        phase: str,
+    ) -> None:
+        """Save screenshot/HTML for the first few failed detail pages."""
+        if self._diagnostics_saved >= config.SEEK_DETAIL_DIAGNOSTICS_LIMIT:
+            return
 
-        Args:
-            urls: List of job detail page URLs.
+        if page.is_closed():
+            return
 
-        Returns:
-            List of HTML strings (or None for jobs that failed after retries).
-        """
-        await self.start()
-        results: list[str | None] = []
+        job_id = job_id_from_url(url)
+        prefix = f"seek-detail-{job_id}-{phase}"
+        self.logger.error(
+            f"Saving Seek detail diagnostics for {url} (failed during {phase})"
+        )
+        try:
+            await save_page_diagnostics(page, self.logger, prefix=prefix)
+            self._diagnostics_saved += 1
+        except Exception as exc:
+            self.logger.warning(
+                f"Could not save Seek detail diagnostics: {format_fetch_error(exc)}"
+            )
 
-        for url in urls:
-            results.append(await self.fetch_job(url))
-
-        return results
-
-    async def _fetch_page(self, url: str) -> str | None:
-        """Open a job page and return its HTML content.
-
-        Args:
-            url: Job detail page URL.
-
-        Returns:
-            Page HTML, or None if the page could not be loaded.
-        """
-        if self._context is None:
-            raise RuntimeError("Browser context is not initialized")
+    async def _fetch_page(self, url: str) -> str:
+        """Open a job page and return its HTML content."""
+        if self._context is None or self._closing:
+            raise RuntimeError("Browser context is not available")
 
         page: Page | None = None
+        goto_timeout, selector_timeout = _detail_timeouts()
+        phase = "navigation"
+
         try:
-            self.logger.info("Opening job page")
+            self.logger.info(f"Opening job page: {url}")
             page = await self._context.new_page()
-            page.set_default_timeout(config.PLAYWRIGHT_TIMEOUT)
-            await page.goto(url, wait_until="domcontentloaded")
-            await page.wait_for_load_state("load")
-            await self._dismiss_cookie_banner(page)
+            self._open_pages.add(page)
+            page.set_default_timeout(selector_timeout)
+
+            await page.goto(
+                url,
+                wait_until="domcontentloaded",
+                timeout=goto_timeout,
+            )
+            await page.wait_for_load_state("load", timeout=goto_timeout)
+            if await is_verification_page(page):
+                await self._save_failure_diagnostics(page, url, "verification")
+                self._abort_detail_crawl = True
+                self._verification_blocked += 1
+                raise RuntimeError("Seek human verification page detected")
+            await dismiss_consent_if_present(
+                page,
+                self.logger,
+                site="generic",
+                results_selector=JOB_DETAIL_SELECTOR,
+            )
+            phase = "selector"
             await page.wait_for_selector(
-                '[data-automation="job-detail-title"], '
-                '[data-automation="jobAdDetails"]',
+                JOB_DETAIL_SELECTOR,
                 state="attached",
-                timeout=config.PLAYWRIGHT_TIMEOUT,
+                timeout=selector_timeout,
             )
             return await page.content()
+        except PlaywrightTimeoutError as exc:
+            if page is not None and not page.is_closed():
+                await self._save_failure_diagnostics(page, url, phase)
+            raise RuntimeError(
+                f"timeout during {phase} "
+                f"(goto={goto_timeout}ms, selector={selector_timeout}ms, "
+                f"total={goto_timeout + selector_timeout}ms)"
+            ) from exc
         except Exception:
-            return None
+            if page is not None and not page.is_closed():
+                await self._save_failure_diagnostics(page, url, phase)
+            raise
         finally:
-            if page is not None:
+            await self._close_page(page)
+
+    async def _close_page(self, page: Page | None) -> None:
+        """Close a page without letting cleanup errors escape."""
+        if page is None:
+            return
+
+        self._open_pages.discard(page)
+        try:
+            if not page.is_closed():
                 await page.close()
-
-    async def _dismiss_cookie_banner(self, page: Page) -> None:
-        """Dismiss the cookie consent banner if it appears.
-
-        Args:
-            page: Active Playwright page.
-        """
-        accept_button = page.locator(
-            'button:has-text("Accept"), button:has-text("Accept all")'
-        )
-        if await accept_button.count() > 0:
-            await accept_button.first.click()
-            await page.wait_for_load_state("load")
+        except Exception as exc:
+            self.logger.warning(f"Page close failed: {format_fetch_error(exc)}")
 
     async def __aenter__(self) -> "JobDetailCrawler":
         """Enter async context and start the browser."""

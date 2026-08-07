@@ -73,10 +73,20 @@ def format_source_summary(results: list[SourceResult]) -> str:
         if result.succeeded:
             lines.append(f"✅ {result.source} ({result.job_count} jobs)")
         else:
-            lines.append(f"❌ {result.source} ({result.error})")
+            lines.append(f"❌ {result.source}")
+            lines.append(f"Reason: {result.error}")
     return "\n".join(lines)
 
 
 def failed_sources(results: list[SourceResult]) -> list[str]:
     """Return source names that failed during crawling."""
     return [result.source for result in results if not result.succeeded]
+
+
+def failed_source_details(results: list[SourceResult]) -> list[tuple[str, str]]:
+    """Return failed sources with their error messages."""
+    return [
+        (result.source, result.error or "unknown error")
+        for result in results
+        if not result.succeeded
+    ]

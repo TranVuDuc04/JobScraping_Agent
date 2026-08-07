@@ -41,14 +41,13 @@ from crawler.linkedin import LinkedInCrawler
 from crawler.runner import (
     SourceResult,
     dedupe_jobs,
-    failed_sources,
+    failed_source_details,
     format_source_summary,
     run_crawlers,
 )
 from crawler.seek import SeekCrawler
 from models.job import Job
 from notifier.discord import DiscordNotifier
-from rules import rule_config
 from rules.engine import RuleEngine
 from rules.filters import location_priority
 from storage.duplicate_checker import DuplicateChecker
@@ -126,9 +125,9 @@ def process_jobs(
 def prioritize_notifications(
     pending: list[PendingNotification],
 ) -> list[PendingNotification]:
-    """Sort jobs by location priority and apply the notification limit."""
+    """Sort jobs by location priority and return all qualifying jobs."""
     pending.sort(key=lambda item: location_priority(item.job.location))
-    return pending[: rule_config.MAX_NOTIFICATIONS_PER_RUN]
+    return pending
 
 
 async def send_notifications(
@@ -137,7 +136,7 @@ async def send_notifications(
     duplicate_checker: DuplicateChecker,
     logger: Logger,
     stats: RunStats,
-    source_failures: list[str],
+    source_failures: list[tuple[str, str]],
 ) -> None:
     """Send Discord notifications for prioritized jobs."""
     for item in pending:
@@ -196,7 +195,7 @@ async def run() -> None:
 
     engine = RuleEngine()
     notifier = DiscordNotifier(config.DISCORD_WEBHOOK)
-    source_failures = failed_sources(source_results)
+    source_failures = failed_source_details(source_results)
 
     try:
         pending = process_jobs(jobs, engine, duplicate_checker, logger, stats)

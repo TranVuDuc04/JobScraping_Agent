@@ -4,6 +4,7 @@ from urllib.parse import quote_plus
 
 import config
 from crawler.base import BaseCrawler
+from crawler.diagnostics import save_page_diagnostics
 from crawler.playwright_session import PlaywrightSession
 from models.job import Job
 from utils.logger import Logger
@@ -26,13 +27,16 @@ class LinkedInCrawler(BaseCrawler):
         """Fetch job listings from LinkedIn search results."""
         self.logger.info("Starting crawler")
         search_url = self._build_search_url()
-        session = PlaywrightSession()
+        session = PlaywrightSession(site="linkedin")
 
+        page = await session.start()
         try:
-            page = await session.start()
             await page.goto(search_url, wait_until="domcontentloaded")
             await page.wait_for_load_state("load")
-            await session.dismiss_cookie_banner(page)
+            await session.dismiss_cookie_banner(
+                page,
+                results_selector=LINKEDIN_JOB_SELECTOR,
+            )
             await page.wait_for_selector(
                 LINKEDIN_JOB_SELECTOR,
                 state="attached",
@@ -41,6 +45,12 @@ class LinkedInCrawler(BaseCrawler):
             jobs = await self._extract_jobs(page)
             self.logger.info(f"Found {len(jobs)} jobs")
             return jobs
+        except Exception as exc:
+            await save_page_diagnostics(page, self.logger, prefix="LinkedIn")
+            message = str(exc) or exc.__class__.__name__
+            if "intercepts pointer events" in message or "modal__overlay" in message:
+                raise RuntimeError("consent modal blocked interaction") from exc
+            raise
         finally:
             await session.close()
 

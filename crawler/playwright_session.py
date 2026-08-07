@@ -4,12 +4,16 @@ from playwright.async_api import Browser, BrowserContext, Page, Playwright, asyn
 
 import config
 from crawler.browser_config import BROWSER_ARGS, STEALTH_INIT_SCRIPT, get_context_options
+from crawler.consent import dismiss_consent_if_present
+from utils.logger import Logger
 
 
 class PlaywrightSession:
     """Reusable Playwright browser session for listing crawlers."""
 
-    def __init__(self) -> None:
+    def __init__(self, site: str = "generic") -> None:
+        self.site = site
+        self.logger = Logger(f"{site}-session")
         self._playwright: Playwright | None = None
         self._browser: Browser | None = None
         self._context: BrowserContext | None = None
@@ -43,12 +47,16 @@ class PlaywrightSession:
             await self._playwright.stop()
             self._playwright = None
 
-    async def dismiss_cookie_banner(self, page: Page) -> None:
-        """Dismiss common cookie consent banners when present."""
-        accept_button = page.locator(
-            'button:has-text("Accept"), button:has-text("Accept all"), '
-            'button:has-text("Agree")'
+    async def dismiss_cookie_banner(
+        self,
+        page: Page,
+        *,
+        results_selector: str | None = None,
+    ) -> bool:
+        """Dismiss consent modals when present without blocking the crawl."""
+        return await dismiss_consent_if_present(
+            page,
+            self.logger,
+            site=self.site,
+            results_selector=results_selector,
         )
-        if await accept_button.count() > 0:
-            await accept_button.first.click()
-            await page.wait_for_load_state("load")

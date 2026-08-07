@@ -41,18 +41,22 @@ class DiscordNotifier:
         )
         response.raise_for_status()
 
-    def send_source_warning(self, failed: list[str]) -> None:
+    def send_source_warning(self, failures: list[tuple[str, str]]) -> None:
         """Send a compact warning when one or more job sources failed."""
-        if not failed or not self.webhook_url:
+        if not failures or not self.webhook_url:
             return
 
-        lines = "\n".join(f"❌ {source} unavailable" for source in failed)
+        if len(failures) == 1:
+            source, reason = failures[0]
+            description = f"❌ {source} unavailable\nReason: {reason}"
+        else:
+            lines = [f"• {source}: {reason}" for source, reason in failures]
+            description = "⚠ Some sources failed\n\n" + "\n".join(lines)
+
         embed = {
             "title": "⚠ Source Status",
             "color": 0xFEE75C,
-            "description": lines if len(failed) == 1 else (
-                "⚠ Some sources failed\n\n" + "\n".join(f"• {source}" for source in failed)
-            ),
+            "description": description,
         }
         response = requests.post(
             self.webhook_url,

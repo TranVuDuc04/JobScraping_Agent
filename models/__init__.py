@@ -1,4 +1,4 @@
-"""Data models."""
+# Data models.
 
 from models.job import Job
 

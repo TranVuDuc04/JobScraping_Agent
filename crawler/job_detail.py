@@ -1,4 +1,4 @@
-"""Job detail page crawler."""
+# Job detail page crawler.
 
 import asyncio
 import time
@@ -23,7 +23,7 @@ JOB_DETAIL_SELECTOR = (
 
 @dataclass
 class DetailCrawlStats:
-    """Metrics for Seek detail page fetching."""
+    # Metrics for Seek detail page fetching.
 
     total: int = 0
     successful: int = 0
@@ -35,14 +35,14 @@ class DetailCrawlStats:
 
     @property
     def average_seconds(self) -> float:
-        """Return the average fetch time for attempted jobs."""
+        # Return the average fetch time for attempted jobs.
         if not self.per_job_seconds:
             return 0.0
         return sum(self.per_job_seconds) / len(self.per_job_seconds)
 
 
 def format_fetch_error(exc: Exception) -> str:
-    """Format an exception for logging, including empty-message cases."""
+    # Format an exception for logging, including empty-message cases.
     message = str(exc).strip()
     if message:
         return f"{exc.__class__.__name__}: {message}"
@@ -50,7 +50,7 @@ def format_fetch_error(exc: Exception) -> str:
 
 
 def is_retryable_error(exc: Exception) -> bool:
-    """Return True only for errors that may succeed on a quick retry."""
+    # Return True only for errors that may succeed on a quick retry.
     if isinstance(exc, PlaywrightTimeoutError):
         return False
 
@@ -89,7 +89,7 @@ def is_retryable_error(exc: Exception) -> bool:
 
 
 def _detail_timeouts() -> tuple[int, int]:
-    """Split the detail timeout budget between navigation and selector waits."""
+    # Split the detail timeout budget between navigation and selector waits.
     total = config.SEEK_DETAIL_TIMEOUT
     goto_timeout = max(int(total * 0.5), 5000)
     selector_timeout = max(total - goto_timeout, 5000)
@@ -97,14 +97,10 @@ def _detail_timeouts() -> tuple[int, int]:
 
 
 class JobDetailCrawler:
-    """Fetches raw HTML from individual job detail pages.
-
-    Launches a single browser instance and reuses it across multiple
-    job pages, opening and closing a new page for each request.
-    """
+    # Fetches raw HTML from individual job detail pages.
 
     def __init__(self) -> None:
-        """Initialize the job detail crawler."""
+        # Initialize the job detail crawler.
         self.logger = Logger("job-detail-crawler")
         self._playwright: Playwright | None = None
         self._browser: Browser | None = None
@@ -119,7 +115,7 @@ class JobDetailCrawler:
         self._verification_blocked = 0
 
     async def start(self) -> None:
-        """Launch the browser and create a reusable context."""
+        # Launch the browser and create a reusable context.
         async with self._start_lock:
             if self._browser is not None:
                 return
@@ -134,7 +130,7 @@ class JobDetailCrawler:
             await self._warmup_session()
 
     async def _warmup_session(self) -> None:
-        """Establish a Seek session before fetching individual job pages."""
+        # Establish a Seek session before fetching individual job pages.
         if self._context is None:
             return
 
@@ -153,7 +149,7 @@ class JobDetailCrawler:
             await self._close_page(page)
 
     async def close(self) -> None:
-        """Close the browser after all in-flight detail tasks finish."""
+        # Close the browser after all in-flight detail tasks finish.
         if self._closing and self._browser is None:
             return
 
@@ -174,7 +170,7 @@ class JobDetailCrawler:
             self._playwright = None
 
     async def _wait_for_active_fetches(self) -> None:
-        """Wait until no detail fetch tasks are still using the browser."""
+        # Wait until no detail fetch tasks are still using the browser.
         while True:
             async with self._active_lock:
                 if self._active_fetches == 0:
@@ -182,13 +178,13 @@ class JobDetailCrawler:
             await asyncio.sleep(0.05)
 
     async def _close_open_pages(self) -> None:
-        """Close any pages still tracked as open."""
+        # Close any pages still tracked as open.
         pages = list(self._open_pages)
         for page in pages:
             await self._close_page(page)
 
     async def fetch_job(self, url: str) -> str | None:
-        """Fetch the raw HTML content of a job detail page."""
+        # Fetch the raw HTML content of a job detail page.
         await self.start()
         return await self._fetch_job_once(url)
 
@@ -197,7 +193,7 @@ class JobDetailCrawler:
         urls: list[str],
         concurrency: int | None = None,
     ) -> tuple[list[str | None], DetailCrawlStats]:
-        """Fetch multiple job pages concurrently with bounded parallelism."""
+        # Fetch multiple job pages concurrently with bounded parallelism.
         await self.start()
         self._closing = False
         self._diagnostics_saved = 0
@@ -261,7 +257,7 @@ class JobDetailCrawler:
         return results, stats
 
     async def _fetch_job_once(self, url: str) -> str | None:
-        """Fetch one job without calling start(); safe for concurrent use."""
+        # Fetch one job without calling start(); safe for concurrent use.
         if self._closing or self._context is None:
             return None
 
@@ -301,7 +297,7 @@ class JobDetailCrawler:
         url: str,
         phase: str,
     ) -> None:
-        """Save screenshot/HTML for the first few failed detail pages."""
+        # Save screenshot/HTML for the first few failed detail pages.
         if self._diagnostics_saved >= config.SEEK_DETAIL_DIAGNOSTICS_LIMIT:
             return
 
@@ -322,7 +318,7 @@ class JobDetailCrawler:
             )
 
     async def _fetch_page(self, url: str) -> str:
-        """Open a job page and return its HTML content."""
+        # Open a job page and return its HTML content.
         if self._context is None or self._closing:
             raise RuntimeError("Browser context is not available")
 
@@ -376,7 +372,7 @@ class JobDetailCrawler:
             await self._close_page(page)
 
     async def _close_page(self, page: Page | None) -> None:
-        """Close a page without letting cleanup errors escape."""
+        # Close a page without letting cleanup errors escape.
         if page is None:
             return
 
@@ -388,10 +384,10 @@ class JobDetailCrawler:
             self.logger.warning(f"Page close failed: {format_fetch_error(exc)}")
 
     async def __aenter__(self) -> "JobDetailCrawler":
-        """Enter async context and start the browser."""
+        # Enter async context and start the browser.
         await self.start()
         return self
 
     async def __aexit__(self, *_: object) -> None:
-        """Exit async context and close the browser."""
+        # Exit async context and close the browser.
         await self.close()

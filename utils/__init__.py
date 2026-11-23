@@ -1,4 +1,4 @@
-"""Shared utilities."""
+# Shared utilities.
 
 from utils.logger import Logger
 

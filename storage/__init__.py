@@ -1,4 +1,4 @@
-"""Duplicate job detection storage."""
+# Duplicate job detection storage.
 
 from storage.duplicate_checker import DuplicateChecker
 

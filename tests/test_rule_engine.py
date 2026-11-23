@@ -1,4 +1,4 @@
-"""Standalone integration test harness for the Rule Engine."""
+# Standalone integration test harness for the Rule Engine.
 
 from __future__ import annotations
 
@@ -19,7 +19,7 @@ SEPARATOR = "=" * 52
 
 @dataclass
 class TestCase:
-    """Defines a single rule engine scenario."""
+    # Defines a single rule engine scenario.
 
     name: str
     title: str | None
@@ -31,7 +31,7 @@ class TestCase:
 
 @dataclass
 class EvaluationOutcome:
-    """Normalized result from any supported rule engine API."""
+    # Normalized result from any supported rule engine API.
 
     matched: bool
     reasons: list[str]
@@ -89,7 +89,7 @@ TEST_CASES: list[TestCase] = [
 
 
 def build_job(test_case: TestCase) -> Job:
-    """Create a Job instance from a test case definition."""
+    # Create a Job instance from a test case definition.
     return Job(
         title=test_case.title or "",
         company="Test Company",
@@ -104,7 +104,7 @@ def build_job(test_case: TestCase) -> Job:
 
 
 def normalize_evaluation(result: object) -> EvaluationOutcome:
-    """Adapt bool/tuple or EvaluationResult-style APIs without changing the engine."""
+    # Adapt bool/tuple or EvaluationResult-style APIs without changing the engine.
     if hasattr(result, "matched"):
         matched = bool(getattr(result, "matched"))
         reasons = list(getattr(result, "reasons", []))
@@ -118,7 +118,7 @@ def normalize_evaluation(result: object) -> EvaluationOutcome:
 
 
 def compute_score(outcome: EvaluationOutcome, job: Job) -> int | None:
-    """Estimate a display score when the engine does not provide one."""
+    # Estimate a display score when the engine does not provide one.
     if outcome.score is not None:
         return outcome.score
 
@@ -137,24 +137,24 @@ def compute_score(outcome: EvaluationOutcome, job: Job) -> int | None:
 
 
 def _experience_within_limit(job: Job, outcome: EvaluationOutcome) -> bool:
-    """Return True when experience did not cause rejection."""
+    # Return True when experience did not cause rejection.
     if not outcome.matched:
         return "Experience exceeds maximum" not in outcome.reasons
     return "Experience exceeds maximum" not in outcome.reasons
 
 
 def format_expected(expected_pass: bool) -> str:
-    """Format the expected outcome label."""
+    # Format the expected outcome label.
     return "PASS" if expected_pass else "FAIL"
 
 
 def format_actual(matched: bool) -> str:
-    """Format the actual engine outcome label."""
+    # Format the actual engine outcome label.
     return "PASS" if matched else "FAIL"
 
 
 def format_title(title: str | None) -> str:
-    """Format a title for display."""
+    # Format a title for display.
     if title is None or not title.strip():
         return "None"
     return title
@@ -165,7 +165,7 @@ def format_reason_lines(
     job: Job,
     test_case: TestCase,
 ) -> list[str]:
-    """Convert engine reasons into readable checklist lines."""
+    # Convert engine reasons into readable checklist lines.
     lines: list[str] = []
 
     if outcome.matched:
@@ -207,7 +207,7 @@ def format_reason_lines(
 
 
 def _find_blocked_keyword(title: str) -> str | None:
-    """Find the blocked keyword in a title for display purposes."""
+    # Find the blocked keyword in a title for display purposes.
     title_lower = title.lower()
     for blocked in ("Senior", "Lead", "Principal", "Director"):
         if blocked.lower() in title_lower:
@@ -221,7 +221,7 @@ def print_case_report(
     job: Job,
     case_passed: bool,
 ) -> None:
-    """Print a formatted report for one test case."""
+    # Print a formatted report for one test case.
     print(SEPARATOR)
     print()
     print(test_case.name)
@@ -260,7 +260,7 @@ def print_case_report(
 
 
 def print_summary(passed: int, failed: int) -> None:
-    """Print the final test harness summary."""
+    # Print the final test harness summary.
     total = passed + failed
     accuracy = (passed / total * 100) if total else 0.0
 
@@ -284,7 +284,7 @@ def print_summary(passed: int, failed: int) -> None:
 
 
 def _quiet_engine_logs() -> None:
-    """Reduce rule engine log noise during manual test runs."""
+    # Reduce rule engine log noise during manual test runs.
     engine_logger = logging.getLogger("rule-engine")
     engine_logger.setLevel(logging.ERROR)
     for handler in engine_logger.handlers:
@@ -292,7 +292,7 @@ def _quiet_engine_logs() -> None:
 
 
 def run_tests() -> int:
-    """Execute all predefined scenarios and print a report."""
+    # Execute all predefined scenarios and print a report.
     engine = RuleEngine()
     _quiet_engine_logs()
     passed_cases = 0

@@ -1,4 +1,4 @@
-"""Shared Playwright browser configuration for local and CI environments."""
+# Shared Playwright browser configuration for local and CI environments.
 
 import platform
 
@@ -27,13 +27,13 @@ STEALTH_INIT_SCRIPT = (
 
 
 def get_user_agent() -> str:
-    """Return a platform-appropriate desktop Chrome user agent."""
+    # Return a platform-appropriate desktop Chrome user agent.
     system = platform.system().lower()
     return USER_AGENTS.get(system, USER_AGENTS["linux"])
 
 
 def get_context_options() -> dict[str, object]:
-    """Return browser context options aligned with Seek's AU audience."""
+    # Return browser context options aligned with Seek's AU audience.
     return {
         "user_agent": get_user_agent(),
         "viewport": {"width": 1920, "height": 1080},

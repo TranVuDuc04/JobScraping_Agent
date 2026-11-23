@@ -1,4 +1,4 @@
-"""Shared Playwright helpers for listing-page crawlers."""
+# Shared Playwright helpers for listing-page crawlers.
 
 from playwright.async_api import Browser, BrowserContext, Page, Playwright, async_playwright
 
@@ -9,7 +9,7 @@ from utils.logger import Logger
 
 
 class PlaywrightSession:
-    """Reusable Playwright browser session for listing crawlers."""
+    # Reusable Playwright browser session for listing crawlers.
 
     def __init__(self, site: str = "generic") -> None:
         self.site = site
@@ -20,7 +20,7 @@ class PlaywrightSession:
         self._page: Page | None = None
 
     async def start(self) -> Page:
-        """Launch the browser and return a configured page."""
+        # Launch the browser and return a configured page.
         self._playwright = await async_playwright().start()
         self._browser = await self._playwright.chromium.launch(
             headless=config.HEADLESS,
@@ -33,7 +33,7 @@ class PlaywrightSession:
         return self._page
 
     async def close(self) -> None:
-        """Close all Playwright resources."""
+        # Close all Playwright resources.
         if self._page is not None:
             await self._page.close()
             self._page = None
@@ -53,7 +53,7 @@ class PlaywrightSession:
         *,
         results_selector: str | None = None,
     ) -> bool:
-        """Dismiss consent modals when present without blocking the crawl."""
+        # Dismiss consent modals when present without blocking the crawl.
         return await dismiss_consent_if_present(
             page,
             self.logger,

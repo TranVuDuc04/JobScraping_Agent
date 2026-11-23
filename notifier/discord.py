@@ -1,4 +1,4 @@
-"""Discord notification handler."""
+# Discord notification handler.
 
 import requests
 
@@ -9,27 +9,14 @@ EMBED_COLOR_GREEN = 0x57F287
 
 
 class DiscordNotifier:
-    """Sends job notifications to a Discord channel via webhook."""
+    # Sends job notifications to a Discord channel via webhook.
 
     def __init__(self, webhook_url: str) -> None:
-        """Initialize the Discord notifier.
-
-        Args:
-            webhook_url: Discord webhook URL for posting messages.
-        """
+        # Initialize the Discord notifier.
         self.webhook_url = webhook_url
 
     def send(self, job: Job, reasons: list[str] | None = None) -> None:
-        """Send a compact embed notification to Discord.
-
-        Args:
-            job: Job to notify about.
-            reasons: Optional rule engine match reasons (unused in embed display).
-
-        Raises:
-            ValueError: If the webhook URL is not configured.
-            requests.RequestException: If the Discord request fails.
-        """
+        # Send a compact embed notification to Discord.
         if not self.webhook_url:
             raise ValueError("DISCORD_WEBHOOK is not configured")
 
@@ -42,7 +29,7 @@ class DiscordNotifier:
         response.raise_for_status()
 
     def send_source_warning(self, failures: list[tuple[str, str]]) -> None:
-        """Send a compact warning when one or more job sources failed."""
+        # Send a compact warning when one or more job sources failed.
         if not failures or not self.webhook_url:
             return
 
@@ -66,7 +53,7 @@ class DiscordNotifier:
         response.raise_for_status()
 
     def _build_embed(self, job: Job) -> dict[str, object]:
-        """Build a compact Discord embed for a job listing."""
+        # Build a compact Discord embed for a job listing.
         keywords = get_matched_keywords(job, limit=3)
         keyword_text = " • ".join(keywords) if keywords else "N/A"
         location = job.location or "N/A"

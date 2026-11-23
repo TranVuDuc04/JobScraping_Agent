@@ -1,4 +1,4 @@
-"""Job site crawlers."""
+# Job site crawlers.
 
 from crawler.base import BaseCrawler
 from crawler.indeed import IndeedCrawler

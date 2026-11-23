@@ -1,4 +1,4 @@
-"""Job filtering, recency checks, and location prioritization."""
+# Job filtering, recency checks, and location prioritization.
 
 import re
 
@@ -23,7 +23,7 @@ LOCATION_PRIORITY_CHECKS: list[tuple[int, str]] = [
 
 
 def is_recent_job(posted_date: str | None, max_days: int | None = None) -> bool:
-    """Return True if a job was posted within the allowed age window."""
+    # Return True if a job was posted within the allowed age window.
     if not posted_date:
         return True
 
@@ -36,7 +36,7 @@ def is_recent_job(posted_date: str | None, max_days: int | None = None) -> bool:
 
 
 def location_priority(location: str | None) -> int:
-    """Return a lower number for higher-priority locations."""
+    # Return a lower number for higher-priority locations.
     loc = (location or "").lower()
     if not loc:
         return 100
@@ -49,7 +49,7 @@ def location_priority(location: str | None) -> int:
 
 
 def get_matched_keywords(job: Job, limit: int = 3) -> list[str]:
-    """Return up to ``limit`` allowed keywords found in the job title or description."""
+    # Return up to ``limit`` allowed keywords found in the job title or description.
     text = f"{job.title} {job.description}".lower()
     matched: list[str] = []
 
@@ -64,7 +64,7 @@ def get_matched_keywords(job: Job, limit: int = 3) -> list[str]:
 
 
 def _posted_age_days(posted_date: str) -> int | None:
-    """Convert a Seek posted-date string into an approximate day count."""
+    # Convert a Seek posted-date string into an approximate day count.
     text = posted_date.strip().lower()
 
     if text in {"today", "just posted"}:
@@ -91,7 +91,7 @@ def _posted_age_days(posted_date: str) -> int | None:
 
 
 def _location_matches_rule(location: str, rule: str) -> bool:
-    """Check whether a location string matches a priority rule."""
+    # Check whether a location string matches a priority rule.
     if rule == "melbourne_cbd":
         return "melbourne" in location and "cbd" in location
     if rule == "inner_melbourne":

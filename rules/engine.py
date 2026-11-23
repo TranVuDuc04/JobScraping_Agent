@@ -1,4 +1,4 @@
-"""Configurable job filtering rule engine."""
+# Configurable job filtering rule engine.
 
 import re
 
@@ -29,10 +29,10 @@ EXPERIENCE_PATTERNS: list[re.Pattern[str]] = [
 
 
 class RuleEngine:
-    """Evaluates jobs against configurable title, location, and experience rules."""
+    # Evaluates jobs against configurable title, location, and experience rules.
 
     def __init__(self) -> None:
-        """Initialize the rule engine with configuration values."""
+        # Initialize the rule engine with configuration values.
         self.logger = Logger("rule-engine")
         self.allowed_titles = rule_config.ALLOWED_TITLES
         self.blocked_titles = rule_config.BLOCKED_TITLES
@@ -40,14 +40,7 @@ class RuleEngine:
         self.max_experience = rule_config.MAX_EXPERIENCE
 
     def evaluate(self, job: Job) -> tuple[bool, list[str]]:
-        """Evaluate whether a job matches all configured rules.
-
-        Args:
-            job: Parsed job listing to evaluate.
-
-        Returns:
-            A tuple of match result and human-readable reasons.
-        """
+        # Evaluate whether a job matches all configured rules.
         title = (job.title or "").strip()
         self.logger.info(f"Evaluating {title or 'Unknown job'}")
 
@@ -87,14 +80,14 @@ class RuleEngine:
         return True, reasons
 
     def _match_title(self, title: str) -> bool:
-        """Check whether the title contains an allowed keyword."""
+        # Check whether the title contains an allowed keyword.
         title_lower = title.lower()
         return any(
             allowed.lower() in title_lower for allowed in self.allowed_titles
         )
 
     def _contains_blocked_title(self, title: str) -> str | None:
-        """Return the blocked keyword found in the title, if any."""
+        # Return the blocked keyword found in the title, if any.
         title_lower = title.lower()
         for blocked in self.blocked_titles:
             if blocked.lower() in title_lower:
@@ -102,7 +95,7 @@ class RuleEngine:
         return None
 
     def _match_location(self, location: str) -> bool:
-        """Check whether the location matches an allowed value."""
+        # Check whether the location matches an allowed value.
         location_lower = location.lower()
         return any(
             allowed.lower() in location_lower
@@ -110,7 +103,7 @@ class RuleEngine:
         )
 
     def _match_experience(self, job: Job) -> tuple[bool, str | None]:
-        """Check whether experience requirements are within the configured limit."""
+        # Check whether experience requirements are within the configured limit.
         required_years = self._extract_required_experience(job.description)
         if required_years is None:
             return True, None
@@ -121,7 +114,7 @@ class RuleEngine:
         return True, None
 
     def _extract_required_experience(self, description: str | None) -> int | None:
-        """Extract the minimum required years of experience from a description."""
+        # Extract the minimum required years of experience from a description.
         if not description:
             return None
 

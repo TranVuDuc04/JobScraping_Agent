@@ -1,4 +1,4 @@
-"""Application configuration loaded from environment variables."""
+# Application configuration loaded from environment variables.
 
 import os
 import sys
@@ -10,7 +10,7 @@ load_dotenv()
 
 
 def _playwright_browser_cache_candidates() -> list[Path]:
-    """Return common Playwright browser install locations."""
+    # Return common Playwright browser install locations.
     home = Path.home()
     return [
         home / "Library" / "Caches" / "ms-playwright",
@@ -24,7 +24,7 @@ def _playwright_cache_has_chromium(cache_dir: Path) -> bool:
 
 
 def ensure_playwright_browsers_path() -> None:
-    """Use an installed Chromium cache when sandbox paths are empty."""
+    # Use an installed Chromium cache when sandbox paths are empty.
     configured = os.getenv("PLAYWRIGHT_BROWSERS_PATH", "").strip()
     if configured and _playwright_cache_has_chromium(Path(configured)):
         return
@@ -100,7 +100,7 @@ SEEK_SEARCH_URL: str = (
 
 
 def get_seek_search_urls() -> list[str]:
-    """Build Seek search result URLs for every configured keyword."""
+    # Build Seek search result URLs for every configured keyword.
     location_slug = SEEK_SEARCH_LOCATION.replace(" ", "-")
     return [
         f"https://www.seek.com.au/{keywords.replace(' ', '-')}-jobs/in-{location_slug}"
@@ -109,11 +109,7 @@ def get_seek_search_urls() -> list[str]:
 
 
 def validate_config() -> bool:
-    """Validate required configuration and print actionable errors.
-
-    Returns:
-        True if configuration is valid, False otherwise.
-    """
+    # Validate required configuration and print actionable errors.
     if DISCORD_WEBHOOK:
         return True
 
@@ -124,6 +120,6 @@ def validate_config() -> bool:
 
 
 def exit_if_invalid() -> None:
-    """Exit the application when required configuration is missing."""
+    # Exit the application when required configuration is missing.
     if not validate_config():
         sys.exit(1)

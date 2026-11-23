@@ -1,4 +1,4 @@
-"""Seek job detail fetcher using undetected-chromedriver."""
+# Seek job detail fetcher using undetected-chromedriver.
 
 from __future__ import annotations
 
@@ -23,7 +23,7 @@ JOB_DETAIL_SELECTOR = (
 
 
 def _page_is_verification(title: str, html: str) -> bool:
-    """Return True when page content looks like a bot challenge."""
+    # Return True when page content looks like a bot challenge.
     lowered_title = title.lower()
     lowered_html = html.lower()
     return any(
@@ -33,7 +33,7 @@ def _page_is_verification(title: str, html: str) -> bool:
 
 
 def _build_chrome_options():
-    """Build Chrome options for undetected-chromedriver."""
+    # Build Chrome options for undetected-chromedriver.
     uc = _import_undetected_chromedriver()
 
     options = uc.ChromeOptions()
@@ -46,7 +46,7 @@ def _build_chrome_options():
 
 
 def _wait_for_job_detail(driver: WebDriver, timeout_seconds: float) -> None:
-    """Wait until Seek job detail markers appear."""
+    # Wait until Seek job detail markers appear.
     from selenium.webdriver.common.by import By
     from selenium.webdriver.support import expected_conditions as EC
     from selenium.webdriver.support.ui import WebDriverWait
@@ -57,7 +57,7 @@ def _wait_for_job_detail(driver: WebDriver, timeout_seconds: float) -> None:
 
 
 def _import_undetected_chromedriver():
-    """Import undetected-chromedriver, raising a clear error on Python 3.12+."""
+    # Import undetected-chromedriver, raising a clear error on Python 3.12+.
     try:
         import undetected_chromedriver as uc
     except ModuleNotFoundError as exc:
@@ -71,7 +71,7 @@ def _import_undetected_chromedriver():
 
 
 def _fetch_jobs_sync(urls: list[str], logger: Logger) -> tuple[list[str | None], DetailCrawlStats]:
-    """Fetch Seek detail pages sequentially with one undetected Chrome session."""
+    # Fetch Seek detail pages sequentially with one undetected Chrome session.
     uc = _import_undetected_chromedriver()
 
     stats = DetailCrawlStats(total=len(urls))
@@ -147,5 +147,5 @@ async def fetch_seek_details_uc(
     urls: list[str],
     logger: Logger,
 ) -> tuple[list[str | None], DetailCrawlStats]:
-    """Fetch Seek detail HTML using undetected-chromedriver in a worker thread."""
+    # Fetch Seek detail HTML using undetected-chromedriver in a worker thread.
     return await asyncio.to_thread(_fetch_jobs_sync, urls, logger)

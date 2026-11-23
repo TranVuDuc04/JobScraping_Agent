@@ -1,4 +1,4 @@
-"""Indeed crawler using undetected-chromedriver."""
+# Indeed crawler using undetected-chromedriver.
 
 from __future__ import annotations
 
@@ -81,7 +81,7 @@ def _cards_to_jobs(cards: list[dict], source_name: str = "Indeed") -> list[Job]:
 
 
 def _dismiss_indeed_consent(driver, logger: Logger) -> None:
-    """Click Indeed OneTrust cookie banner when visible."""
+    # Click Indeed OneTrust cookie banner when visible.
     from selenium.common.exceptions import TimeoutException
     from selenium.webdriver.common.by import By
     from selenium.webdriver.support import expected_conditions as EC
@@ -108,7 +108,7 @@ def _dismiss_indeed_consent(driver, logger: Logger) -> None:
 
 
 def _wait_for_indeed_results(driver, logger: Logger, timeout_seconds: float) -> bool:
-    """Wait for Cloudflare/Indeed challenge to clear and job cards to appear."""
+    # Wait for Cloudflare/Indeed challenge to clear and job cards to appear.
     from selenium.webdriver.common.by import By
     from selenium.webdriver.support import expected_conditions as EC
     from selenium.webdriver.support.ui import WebDriverWait
@@ -142,7 +142,7 @@ def _wait_for_indeed_results(driver, logger: Logger, timeout_seconds: float) -> 
 
 
 def _crawl_indeed_sync(logger: Logger) -> list[Job]:
-    """Fetch Indeed listings with one undetected Chrome session."""
+    # Fetch Indeed listings with one undetected Chrome session.
     import_undetected_chromedriver()
     search_url = _build_search_url()
     timeout_seconds = config.PLAYWRIGHT_TIMEOUT / 1000
@@ -186,5 +186,5 @@ def _crawl_indeed_sync(logger: Logger) -> list[Job]:
 
 
 async def crawl_indeed_uc(logger: Logger) -> list[Job]:
-    """Async wrapper for Indeed undetected-chromedriver crawl."""
+    # Async wrapper for Indeed undetected-chromedriver crawl.
     return await asyncio.to_thread(_crawl_indeed_sync, logger)

@@ -1,4 +1,4 @@
-"""Robust cookie and modal consent handling for listing crawlers."""
+# Robust cookie and modal consent handling for listing crawlers.
 
 from playwright.async_api import Page, TimeoutError as PlaywrightTimeoutError
 
@@ -34,10 +34,7 @@ async def dismiss_consent_if_present(
     site: str = "generic",
     results_selector: str | None = None,
 ) -> bool:
-    """Dismiss a visible consent modal when present.
-
-    Returns True when a consent action was attempted, False when skipped.
-    """
+    # Dismiss a visible consent modal when present.
     timeout = config.CONSENT_ACTION_TIMEOUT
 
     if results_selector and await page.locator(results_selector).count() > 0:
@@ -90,7 +87,7 @@ async def _click_consent_button(
     site: str,
     timeout: int,
 ) -> bool:
-    """Click a consent button with a short timeout, without blocking the crawl."""
+    # Click a consent button with a short timeout, without blocking the crawl.
     try:
         await button.click(timeout=timeout)
         logger.info(f"{site}: consent accepted")
@@ -113,7 +110,7 @@ async def _dismiss_blocking_overlay(
     site: str,
     timeout: int,
 ) -> None:
-    """Try to dismiss a blocking overlay without stalling the crawl."""
+    # Try to dismiss a blocking overlay without stalling the crawl.
     dismiss_selectors = (
         'button.artdeco-modal__dismiss:visible',
         'button[aria-label="Dismiss"]:visible',

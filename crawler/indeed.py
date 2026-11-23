@@ -1,4 +1,4 @@
-"""Indeed job site crawler."""
+# Indeed job site crawler.
 
 import asyncio
 import time
@@ -28,16 +28,16 @@ INDEED_RESULTS_CONTAINER = (
 
 
 class IndeedCrawler(BaseCrawler):
-    """Crawler for Indeed Australia job listings."""
+    # Crawler for Indeed Australia job listings.
 
     source_name = "Indeed"
 
     def __init__(self) -> None:
-        """Initialize the Indeed crawler."""
+        # Initialize the Indeed crawler.
         self.logger = Logger("indeed-crawler")
 
     async def crawl(self) -> list[Job]:
-        """Fetch job listings from Indeed search results."""
+        # Fetch job listings from Indeed search results.
         self.logger.info("Starting crawler")
 
         if config.INDEED_USE_UNDETECTED_CHROME:
@@ -55,7 +55,7 @@ class IndeedCrawler(BaseCrawler):
         return await self._crawl_playwright()
 
     async def _crawl_playwright(self) -> list[Job]:
-        """Fetch Indeed listings via Playwright (fallback path)."""
+        # Fetch Indeed listings via Playwright (fallback path).
         search_url = self._build_search_url()
         session = PlaywrightSession(site="indeed")
 
@@ -94,13 +94,13 @@ class IndeedCrawler(BaseCrawler):
             await session.close()
 
     def _build_search_url(self) -> str:
-        """Build an Indeed Australia search URL from configuration."""
+        # Build an Indeed Australia search URL from configuration.
         query = quote_plus(config.INDEED_SEARCH_KEYWORDS)
         location = quote_plus(config.INDEED_SEARCH_LOCATION)
         return f"https://au.indeed.com/jobs?q={query}&l={location}"
 
     async def _wait_for_indeed_results(self, page) -> None:
-        """Wait for bot challenges to clear before checking for job cards."""
+        # Wait for bot challenges to clear before checking for job cards.
         deadline = time.monotonic() + config.PLAYWRIGHT_TIMEOUT / 1000
         last_log = 0.0
 
@@ -125,7 +125,7 @@ class IndeedCrawler(BaseCrawler):
         raise RuntimeError("Indeed challenge did not clear or job results not found")
 
     async def _detect_blocked_page(self, page) -> str | None:
-        """Detect CAPTCHA or bot-protection pages (not normal OneTrust cookie banners)."""
+        # Detect CAPTCHA or bot-protection pages (not normal OneTrust cookie banners).
         title = (await page.title()).lower()
         html = (await page.content()).lower()
         has_results = await page.locator(INDEED_RESULTS_CONTAINER).count() > 0
@@ -145,7 +145,7 @@ class IndeedCrawler(BaseCrawler):
         return None
 
     async def _extract_jobs(self, page) -> list[Job]:
-        """Extract job listings from the Indeed results page."""
+        # Extract job listings from the Indeed results page.
         cards = await page.eval_on_selector_all(
             "#mosaic-provider-jobcards div.job_seen_beacon, "
             "#mosaic-provider-jobcards div.cardOutline, "

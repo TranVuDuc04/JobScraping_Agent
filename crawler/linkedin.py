@@ -1,4 +1,4 @@
-"""LinkedIn job site crawler."""
+# LinkedIn job site crawler.
 
 from urllib.parse import quote_plus
 
@@ -15,16 +15,16 @@ LINKEDIN_JOB_SELECTOR = (
 
 
 class LinkedInCrawler(BaseCrawler):
-    """Crawler for LinkedIn job listings."""
+    # Crawler for LinkedIn job listings.
 
     source_name = "LinkedIn"
 
     def __init__(self) -> None:
-        """Initialize the LinkedIn crawler."""
+        # Initialize the LinkedIn crawler.
         self.logger = Logger("linkedin-crawler")
 
     async def crawl(self) -> list[Job]:
-        """Fetch job listings from LinkedIn search results."""
+        # Fetch job listings from LinkedIn search results.
         self.logger.info("Starting crawler")
         search_url = self._build_search_url()
         session = PlaywrightSession(site="linkedin")
@@ -55,7 +55,7 @@ class LinkedInCrawler(BaseCrawler):
             await session.close()
 
     def _build_search_url(self) -> str:
-        """Build a LinkedIn jobs search URL from configuration."""
+        # Build a LinkedIn jobs search URL from configuration.
         keywords = quote_plus(config.LINKEDIN_SEARCH_KEYWORDS)
         location = quote_plus(config.LINKEDIN_SEARCH_LOCATION)
         return (
@@ -64,7 +64,7 @@ class LinkedInCrawler(BaseCrawler):
         )
 
     async def _extract_jobs(self, page) -> list[Job]:
-        """Extract job listings from the LinkedIn results page."""
+        # Extract job listings from the LinkedIn results page.
         cards = await page.eval_on_selector_all(
             "li .base-card, li .job-card-container, li",
             """elements => elements.map(el => {

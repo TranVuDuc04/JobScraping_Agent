@@ -1,4 +1,4 @@
-"""Shared undetected-chromedriver helpers."""
+# Shared undetected-chromedriver helpers.
 
 from __future__ import annotations
 
@@ -21,7 +21,7 @@ VERIFICATION_MARKERS = (
 
 
 def ensure_ssl_certificates() -> None:
-    """Use certifi CA bundle so UC can download ChromeDriver on macOS Python."""
+    # Use certifi CA bundle so UC can download ChromeDriver on macOS Python.
     try:
         import os
 
@@ -35,7 +35,7 @@ def ensure_ssl_certificates() -> None:
 
 
 def import_undetected_chromedriver():
-    """Import undetected-chromedriver, raising a clear error on Python 3.12+."""
+    # Import undetected-chromedriver, raising a clear error on Python 3.12+.
     ensure_ssl_certificates()
     try:
         import undetected_chromedriver as uc
@@ -50,7 +50,7 @@ def import_undetected_chromedriver():
 
 
 def build_chrome_options():
-    """Build Chrome options for undetected-chromedriver."""
+    # Build Chrome options for undetected-chromedriver.
     uc = import_undetected_chromedriver()
     options = uc.ChromeOptions()
     options.add_argument("--no-sandbox")
@@ -63,7 +63,7 @@ def build_chrome_options():
 
 
 def page_is_verification(title: str, html: str) -> bool:
-    """Return True when page content looks like a bot challenge."""
+    # Return True when page content looks like a bot challenge.
     lowered_title = title.lower()
     lowered_html = html.lower()
     return any(
@@ -73,7 +73,7 @@ def page_is_verification(title: str, html: str) -> bool:
 
 
 def format_fetch_error(exc: Exception) -> str:
-    """Format an exception for logging."""
+    # Format an exception for logging.
     message = str(exc).strip()
     if message:
         return f"{exc.__class__.__name__}: {message}"

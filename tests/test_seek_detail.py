@@ -1,4 +1,4 @@
-"""Tests for Seek detail crawler optimizations."""
+# Tests for Seek detail crawler optimizations.
 
 from __future__ import annotations
 
@@ -45,7 +45,7 @@ def _listing(job_id: str, iso_date: str, display: str | None = None) -> SeekList
 
 
 def test_filter_recent_listings_skips_old_jobs() -> None:
-    """Test A: only recent jobs remain after API pre-filtering."""
+    # Test A: only recent jobs remain after API pre-filtering.
     now = datetime.now(timezone.utc)
     recent_listings = []
     for index in range(34):
@@ -119,7 +119,7 @@ async def _run_fetch_jobs_concurrent(urls: list[str]) -> tuple[list[str | None],
 
 
 def test_one_failed_detail_page_does_not_stop_others() -> None:
-    """Test B: one failed job is skipped and the rest continue."""
+    # Test B: one failed job is skipped and the rest continue.
     urls = [
         "https://www.seek.com.au/job/1",
         "https://www.seek.com.au/job/fail",
@@ -137,7 +137,7 @@ def test_one_failed_detail_page_does_not_stop_others() -> None:
 
 
 def test_multiple_failures_finish_without_long_waits() -> None:
-    """Test C: several failures should complete quickly with mocked fetches."""
+    # Test C: several failures should complete quickly with mocked fetches.
     urls = [f"https://www.seek.com.au/job/{index}" for index in range(6)]
 
     async def slow_or_fail(url: str) -> str | None:
@@ -172,7 +172,7 @@ def test_detail_stats_average_time() -> None:
 
 
 def test_gather_collects_task_exceptions() -> None:
-    """Task exceptions must be collected without aborting sibling fetches."""
+    # Task exceptions must be collected without aborting sibling fetches.
 
     async def run() -> None:
         crawler = JobDetailCrawler()

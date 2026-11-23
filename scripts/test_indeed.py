@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Standalone Indeed crawler test — does not run Seek/LinkedIn or Discord."""
+# Standalone Indeed crawler test — does not run Seek/LinkedIn or Discord.
 
 from __future__ import annotations
 

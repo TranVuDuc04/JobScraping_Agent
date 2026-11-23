@@ -1,10 +1,10 @@
-"""AI Job Agent entry point."""
+# AI Job Agent entry point.
 
 import sys
 
 
 def _ensure_dependencies() -> None:
-    """Verify required packages are installed before importing project modules."""
+    # Verify required packages are installed before importing project modules.
     missing: list[str] = []
     for package in ("playwright", "dotenv", "bs4", "requests"):
         try:
@@ -56,7 +56,7 @@ from utils.logger import Logger
 
 @dataclass
 class RunStats:
-    """Tracks pipeline execution metrics."""
+    # Tracks pipeline execution metrics.
 
     crawled: int = 0
     parsed: int = 0
@@ -71,14 +71,14 @@ class RunStats:
 
 @dataclass
 class PendingNotification:
-    """A matched job waiting to be sent to Discord."""
+    # A matched job waiting to be sent to Discord.
 
     job: Job
     reasons: list[str]
 
 
 def get_crawlers() -> list:
-    """Return all configured job source crawlers."""
+    # Return all configured job source crawlers.
     return [SeekCrawler(), LinkedInCrawler(), IndeedCrawler()]
 
 
@@ -89,7 +89,7 @@ def process_jobs(
     logger: Logger,
     stats: RunStats,
 ) -> list[PendingNotification]:
-    """Apply rule engine and duplicate checks to crawled jobs."""
+    # Apply rule engine and duplicate checks to crawled jobs.
     pending: list[PendingNotification] = []
     stats.parsed = len(jobs)
 
@@ -125,7 +125,7 @@ def process_jobs(
 def prioritize_notifications(
     pending: list[PendingNotification],
 ) -> list[PendingNotification]:
-    """Sort jobs by location priority and return all qualifying jobs."""
+    # Sort jobs by location priority and return all qualifying jobs.
     pending.sort(key=lambda item: location_priority(item.job.location))
     return pending
 
@@ -138,7 +138,7 @@ async def send_notifications(
     stats: RunStats,
     source_failures: list[tuple[str, str]],
 ) -> None:
-    """Send Discord notifications for prioritized jobs."""
+    # Send Discord notifications for prioritized jobs.
     for item in pending:
         logger.info("New job")
         logger.info("Sending Discord notification")
@@ -167,7 +167,7 @@ def print_summary(
     elapsed: float,
     source_results: list[SourceResult],
 ) -> None:
-    """Print the run summary report."""
+    # Print the run summary report.
     border = "===================================="
     print(f"{border}\nRUN SUMMARY\nJobs Crawled: {stats.crawled}")
     print(f"Jobs Parsed: {stats.parsed}\nMatched Jobs: {stats.matched}")
@@ -179,7 +179,7 @@ def print_summary(
 
 
 async def run() -> None:
-    """Execute the full crawl-to-Discord pipeline."""
+    # Execute the full crawl-to-Discord pipeline.
     start = time.perf_counter()
     logger, stats = Logger("main"), RunStats()
     duplicate_checker = DuplicateChecker()
@@ -210,7 +210,7 @@ async def run() -> None:
 
 
 def main() -> None:
-    """Initialize and execute the application."""
+    # Initialize and execute the application.
     config.exit_if_invalid()
     asyncio.run(run())
 

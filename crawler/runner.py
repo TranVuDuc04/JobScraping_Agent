@@ -1,4 +1,4 @@
-"""Fault-tolerant multi-source crawler runner."""
+# Fault-tolerant multi-source crawler runner.
 
 import traceback
 from dataclasses import dataclass
@@ -11,7 +11,7 @@ from utils.logger import Logger
 
 @dataclass
 class SourceResult:
-    """Outcome from a single job source crawler."""
+    # Outcome from a single job source crawler.
 
     source: str
     job_count: int
@@ -19,7 +19,7 @@ class SourceResult:
 
     @property
     def succeeded(self) -> bool:
-        """Return True when the crawler completed without error."""
+        # Return True when the crawler completed without error.
         return self.error is None
 
 
@@ -27,7 +27,7 @@ async def run_crawlers(
     crawlers: list[BaseCrawler],
     logger: Logger,
 ) -> tuple[list[Job], list[SourceResult]]:
-    """Run all crawlers independently and combine successful results."""
+    # Run all crawlers independently and combine successful results.
     all_jobs: list[Job] = []
     results: list[SourceResult] = []
 
@@ -50,7 +50,7 @@ async def run_crawlers(
 
 
 def dedupe_jobs(jobs: list[Job]) -> list[Job]:
-    """Remove duplicate jobs across sources by URL and title/company fingerprint."""
+    # Remove duplicate jobs across sources by URL and title/company fingerprint.
     seen_urls: set[str] = set()
     seen_fingerprints: set[str] = set()
     unique_jobs: list[Job] = []
@@ -67,7 +67,7 @@ def dedupe_jobs(jobs: list[Job]) -> list[Job]:
 
 
 def format_source_summary(results: list[SourceResult]) -> str:
-    """Format crawler source results for terminal output."""
+    # Format crawler source results for terminal output.
     lines = ["Sources", ""]
     for result in results:
         if result.succeeded:
@@ -79,12 +79,12 @@ def format_source_summary(results: list[SourceResult]) -> str:
 
 
 def failed_sources(results: list[SourceResult]) -> list[str]:
-    """Return source names that failed during crawling."""
+    # Return source names that failed during crawling.
     return [result.source for result in results if not result.succeeded]
 
 
 def failed_source_details(results: list[SourceResult]) -> list[tuple[str, str]]:
-    """Return failed sources with their error messages."""
+    # Return failed sources with their error messages.
     return [
         (result.source, result.error or "unknown error")
         for result in results

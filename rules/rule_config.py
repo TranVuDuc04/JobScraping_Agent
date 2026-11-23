@@ -1,4 +1,4 @@
-"""Rule engine configuration for job filtering."""
+# Rule engine configuration for job filtering.
 
 ALLOWED_TITLES: list[str] = [
     "Junior Software Engineer",

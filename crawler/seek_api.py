@@ -1,4 +1,4 @@
-"""Seek job search API client for URL discovery."""
+# Seek job search API client for URL discovery.
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -17,7 +17,7 @@ DEFAULT_PAGE_SIZE = 30
 
 @dataclass(frozen=True)
 class SeekListing:
-    """Metadata for a job returned by the Seek search API."""
+    # Metadata for a job returned by the Seek search API.
 
     job_id: str
     title: str
@@ -32,7 +32,7 @@ class SeekListing:
 
 
 def listing_to_job(listing: SeekListing) -> Job:
-    """Build a Job from Seek search API metadata when detail pages are unavailable."""
+    # Build a Job from Seek search API metadata when detail pages are unavailable.
     description = listing.teaser or listing.title
     posted_date = listing.listing_date_display
     if not posted_date and listing.listing_date:
@@ -52,7 +52,7 @@ def listing_to_job(listing: SeekListing) -> Job:
 
 
 def parse_search_url(search_url: str) -> tuple[str, str]:
-    """Extract keywords and location slugs from a Seek search results URL."""
+    # Extract keywords and location slugs from a Seek search results URL.
     path = urlparse(search_url).path.strip("/")
     segments = path.split("/")
     keywords = segments[0].removesuffix("-jobs").replace("-", " ")
@@ -63,7 +63,7 @@ def parse_search_url(search_url: str) -> tuple[str, str]:
 
 
 def _parse_listing(job: dict) -> SeekListing | None:
-    """Convert a Seek API job payload into a SeekListing."""
+    # Convert a Seek API job payload into a SeekListing.
     job_id = job.get("id")
     if not job_id:
         return None
@@ -91,7 +91,7 @@ def _parse_listing(job: dict) -> SeekListing | None:
 
 
 def _iso_age_days(iso_date: str) -> int | None:
-    """Convert a Seek ISO listing date into whole days since posting."""
+    # Convert a Seek ISO listing date into whole days since posting.
     try:
         normalized = iso_date.replace("Z", "+00:00")
         posted = datetime.fromisoformat(normalized)
@@ -107,7 +107,7 @@ def is_listing_recent(
     listing: SeekListing,
     max_days: int | None = None,
 ) -> bool:
-    """Return True when a Seek API listing is within the allowed age window."""
+    # Return True when a Seek API listing is within the allowed age window.
     max_age = max_days if max_days is not None else rule_config.MAX_JOB_AGE_DAYS
 
     if listing.listing_date:
@@ -125,7 +125,7 @@ def filter_recent_listings(
     listings: list[SeekListing],
     max_days: int | None = None,
 ) -> list[SeekListing]:
-    """Keep only listings newer than the configured age limit."""
+    # Keep only listings newer than the configured age limit.
     return [listing for listing in listings if is_listing_recent(listing, max_days)]
 
 
@@ -134,7 +134,7 @@ def fetch_job_listings_for_query(
     location: str = "",
     page_size: int = DEFAULT_PAGE_SIZE,
 ) -> list[SeekListing]:
-    """Fetch job listings for a single keyword/location query."""
+    # Fetch job listings for a single keyword/location query.
     params: dict[str, str | int] = {
         "keywords": keywords,
         "page": 1,
@@ -168,7 +168,7 @@ def fetch_job_listings_for_keywords(
     location: str = "",
     page_size: int = DEFAULT_PAGE_SIZE,
 ) -> list[SeekListing]:
-    """Fetch and deduplicate Seek listings across multiple keyword searches."""
+    # Fetch and deduplicate Seek listings across multiple keyword searches.
     seen: set[str] = set()
     listings: list[SeekListing] = []
 
@@ -186,12 +186,12 @@ def fetch_job_urls_for_query(
     location: str = "",
     page_size: int = DEFAULT_PAGE_SIZE,
 ) -> list[str]:
-    """Fetch job detail URLs for a single keyword/location query."""
+    # Fetch job detail URLs for a single keyword/location query.
     return [listing.url for listing in fetch_job_listings_for_query(keywords, location, page_size)]
 
 
 def fetch_job_urls(search_url: str, page_size: int = DEFAULT_PAGE_SIZE) -> list[str]:
-    """Fetch job detail URLs from a Seek search results URL."""
+    # Fetch job detail URLs from a Seek search results URL.
     keywords, location = parse_search_url(search_url)
     return fetch_job_urls_for_query(keywords, location, page_size)
 
@@ -201,7 +201,7 @@ def fetch_job_urls_for_keywords(
     location: str = "",
     page_size: int = DEFAULT_PAGE_SIZE,
 ) -> list[str]:
-    """Fetch and deduplicate job URLs across multiple keyword searches."""
+    # Fetch and deduplicate job URLs across multiple keyword searches.
     return [
         listing.url
         for listing in fetch_job_listings_for_keywords(keywords_list, location, page_size)

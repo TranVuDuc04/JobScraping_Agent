@@ -1,4 +1,4 @@
-"""Seek job site crawler."""
+# Seek job site crawler.
 
 import re
 from urllib.parse import urljoin, urlparse
@@ -32,30 +32,19 @@ JOB_ID_PATTERN = re.compile(r"/job/(\d+)")
 
 
 class SeekCrawler(BaseCrawler):
-    """Crawler that collects job listings from Seek Australia."""
+    # Crawler that collects job listings from Seek Australia.
 
     source_name = "Seek"
 
     def __init__(self, search_url: str | None = None) -> None:
-        """Initialize the Seek crawler.
-
-        Args:
-            search_url: Optional override for the Seek search results URL.
-        """
+        # Initialize the Seek crawler.
         self.search_urls = (
             [search_url] if search_url else config.get_seek_search_urls()
         )
         self.logger = Logger("seek-crawler")
 
     async def crawl(self) -> list[Job]:
-        """Fetch parsed job listings from Seek with automatic retries.
-
-        Returns:
-            A deduplicated list of Seek Job objects.
-
-        Raises:
-            RuntimeError: If all retry attempts fail.
-        """
+        # Fetch parsed job listings from Seek with automatic retries.
         self.logger.info("Starting crawler")
         if config.USE_SEEK_API_FOR_URLS:
             listings = self._discover_listings_via_api()
@@ -68,7 +57,7 @@ class SeekCrawler(BaseCrawler):
         return jobs
 
     def _discover_listings_via_api(self) -> list[SeekListing]:
-        """Fetch listings via API and drop jobs older than the age limit."""
+        # Fetch listings via API and drop jobs older than the age limit.
         self.logger.info("Using Seek search API for URL discovery")
         try:
             listings = fetch_job_listings_for_keywords(
@@ -93,7 +82,7 @@ class SeekCrawler(BaseCrawler):
         return recent
 
     async def _discover_urls(self) -> list[str]:
-        """Discover job detail URLs from Seek via Playwright search pages."""
+        # Discover job detail URLs from Seek via Playwright search pages.
         last_error: Exception | None = None
 
         for attempt in range(1, MAX_RETRIES + 1):
@@ -114,7 +103,7 @@ class SeekCrawler(BaseCrawler):
         ) from last_error
 
     async def _fetch_jobs_from_listings(self, listings: list[SeekListing]) -> list[Job]:
-        """Fetch Seek jobs from API listings, preferring links over full detail pages."""
+        # Fetch Seek jobs from API listings, preferring links over full detail pages.
         if not listings:
             return []
 
@@ -161,14 +150,14 @@ class SeekCrawler(BaseCrawler):
             return self._listings_to_jobs(listings)
 
     def _listings_to_jobs(self, listings: list[SeekListing]) -> list[Job]:
-        """Convert API listings to jobs using link + basic metadata only."""
+        # Convert API listings to jobs using link + basic metadata only.
         return [listing_to_job(listing) for listing in listings]
 
     async def _fetch_details_playwright(
         self,
         urls: list[str],
     ) -> tuple[list[str | None], DetailCrawlStats]:
-        """Fetch Seek detail pages via Playwright."""
+        # Fetch Seek detail pages via Playwright.
         async with JobDetailCrawler() as detail_crawler:
             self.logger.info(
                 f"Detail crawl config: concurrency={config.SEEK_DETAIL_CONCURRENCY}, "
@@ -177,7 +166,7 @@ class SeekCrawler(BaseCrawler):
             return await detail_crawler.fetch_jobs_concurrent(urls)
 
     async def _fetch_jobs_from_urls(self, urls: list[str]) -> list[Job]:
-        """Fetch and parse Seek job detail pages discovered via Playwright."""
+        # Fetch and parse Seek job detail pages discovered via Playwright.
         if not urls:
             return []
 
@@ -209,7 +198,7 @@ class SeekCrawler(BaseCrawler):
         html_results: list[str | None],
         parser: JobParser,
     ) -> tuple[list[Job], int]:
-        """Parse fetched HTML into Job objects, with API fallback on failure."""
+        # Parse fetched HTML into Job objects, with API fallback on failure.
         jobs: list[Job] = []
         api_fallback = 0
 
@@ -239,7 +228,7 @@ class SeekCrawler(BaseCrawler):
         *,
         api_fallback: int = 0,
     ) -> None:
-        """Log detail crawl performance metrics."""
+        # Log detail crawl performance metrics.
         self.logger.info("Job details:")
         self.logger.info(f"{stats.total} total")
         self.logger.info(f"{stats.successful} successful")
@@ -256,7 +245,7 @@ class SeekCrawler(BaseCrawler):
         self.logger.info(f"Average detail time: {stats.average_seconds:.2f}s")
 
     async def _run_url_crawl(self) -> list[str]:
-        """Execute a single crawl attempt across all configured searches."""
+        # Execute a single crawl attempt across all configured searches.
         playwright = await async_playwright().start()
         browser = await playwright.chromium.launch(
             headless=config.HEADLESS,
@@ -288,7 +277,7 @@ class SeekCrawler(BaseCrawler):
             await playwright.stop()
 
     async def _open_search_page(self, page: Page, search_url: str) -> list[str]:
-        """Navigate to a Seek search page and return job detail URLs."""
+        # Navigate to a Seek search page and return job detail URLs.
         response = await page.goto(
             search_url,
             wait_until="domcontentloaded",
@@ -312,7 +301,7 @@ class SeekCrawler(BaseCrawler):
         return await self._extract_urls(page)
 
     async def _dismiss_cookie_banner(self, page: Page) -> None:
-        """Dismiss the cookie consent banner if it appears."""
+        # Dismiss the cookie consent banner if it appears.
         accept_button = page.locator(
             'button:has-text("Accept"), button:has-text("Accept all")'
         )
@@ -321,7 +310,7 @@ class SeekCrawler(BaseCrawler):
             await page.wait_for_load_state("load")
 
     async def _extract_urls(self, page: Page) -> list[str]:
-        """Extract and deduplicate job detail URLs from the current page."""
+        # Extract and deduplicate job detail URLs from the current page.
         hrefs = await page.eval_on_selector_all(
             JOB_LINK_SELECTOR,
             "elements => elements.map(el => el.href || el.getAttribute('href'))",
@@ -339,7 +328,7 @@ class SeekCrawler(BaseCrawler):
         return urls
 
     def _normalize_job_url(self, href: str) -> str | None:
-        """Normalize a href into a canonical Seek job detail URL."""
+        # Normalize a href into a canonical Seek job detail URL.
         if not href:
             return None
 

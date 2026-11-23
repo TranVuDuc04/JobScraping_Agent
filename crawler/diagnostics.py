@@ -1,4 +1,4 @@
-"""Save Playwright page diagnostics for failed crawls."""
+# Save Playwright page diagnostics for failed crawls.
 
 import re
 from pathlib import Path
@@ -23,14 +23,14 @@ VERIFICATION_MARKERS = (
 
 
 async def is_verification_page(page: Page) -> bool:
-    """Return True when the page looks like a bot/human verification challenge."""
+    # Return True when the page looks like a bot/human verification challenge.
     title = (await page.title()).lower()
     html = (await page.content()).lower()
     return any(marker in title or marker in html for marker in VERIFICATION_MARKERS)
 
 
 async def log_page_state(page: Page, logger: Logger, label: str = "") -> None:
-    """Log URL, title, and a short HTML snippet for debugging."""
+    # Log URL, title, and a short HTML snippet for debugging.
     prefix = f"{label} " if label else ""
     title = await page.title()
     logger.error(f"{prefix}Current URL: {page.url}")
@@ -52,13 +52,13 @@ async def log_page_state(page: Page, logger: Logger, label: str = "") -> None:
 
 
 def job_id_from_url(url: str) -> str:
-    """Extract a Seek job ID from a detail URL."""
+    # Extract a Seek job ID from a detail URL.
     match = JOB_ID_PATTERN.search(url)
     return match.group(1) if match else "unknown"
 
 
 def save_page_diagnostics_sync(driver, logger: Logger, prefix: str = "") -> None:
-    """Persist screenshot and HTML from a Selenium WebDriver."""
+    # Persist screenshot and HTML from a Selenium WebDriver.
     ARTIFACTS_DIR.mkdir(parents=True, exist_ok=True)
     prefix_label = f"{prefix} " if prefix else ""
     title = driver.title
@@ -86,7 +86,7 @@ def save_page_diagnostics_sync(driver, logger: Logger, prefix: str = "") -> None
 
 
 async def save_page_diagnostics(page: Page, logger: Logger, prefix: str = "") -> None:
-    """Persist screenshot and HTML for debugging failed page loads."""
+    # Persist screenshot and HTML for debugging failed page loads.
     await log_page_state(page, logger, prefix)
     ARTIFACTS_DIR.mkdir(parents=True, exist_ok=True)
 

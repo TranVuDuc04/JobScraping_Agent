@@ -1,4 +1,4 @@
-"""Notification handlers."""
+# Notification handlers.
 
 from notifier.discord import DiscordNotifier
 
